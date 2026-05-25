@@ -68,7 +68,11 @@ export function SubjectInput({
         <ul className="subject-chips">
           {value.map((s) => (
             <li key={s}>
-              <button className="subject-chip" onClick={() => remove(s)}>
+              <button
+                className="subject-chip"
+                onClick={() => remove(s)}
+                aria-label={`${s} 삭제`}
+              >
                 <span>{s}</span>
                 <span className="subject-chip__x" aria-hidden>
                   ×
