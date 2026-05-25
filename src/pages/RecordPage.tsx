@@ -3,7 +3,6 @@
 
 import { Navigate } from 'react-router-dom'
 
-import { TabBar } from '../components/TabBar'
 import { usePacely } from '../lib/store/store'
 
 function fmtDate(iso: string): string {
@@ -62,8 +61,6 @@ export function RecordPage() {
         )}
       </section>
 
-      <div className="home-tabbar-spacer" />
-      <TabBar />
     </div>
   )
 }

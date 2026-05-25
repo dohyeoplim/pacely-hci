@@ -11,7 +11,6 @@ import { MissionList } from '../components/MissionList'
 import { NotificationToast } from '../components/NotificationToast'
 import { PwaPrompts } from '../components/PwaPrompts'
 import { ProgressRing } from '../components/ProgressRing'
-import { TabBar } from '../components/TabBar'
 import { usePacely } from '../lib/store/store'
 import { dDay, fromISO, timeOfDay, todayISO } from '../lib/util'
 import type { MissionTask } from '../types'
@@ -198,9 +197,6 @@ export function HomePage() {
       )}
 
       <PwaPrompts />
-
-      <div className="home-tabbar-spacer" />
-      <TabBar />
 
       <MissionEditSheet
         open={!!sheet}

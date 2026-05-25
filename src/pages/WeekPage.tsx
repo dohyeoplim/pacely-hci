@@ -9,7 +9,6 @@ import { Navigate } from 'react-router-dom'
 
 import { MissionEditSheet } from '../components/MissionEditSheet'
 import { MissionList } from '../components/MissionList'
-import { TabBar } from '../components/TabBar'
 import { usePacely } from '../lib/store/store'
 import { fromISO, todayISO } from '../lib/util'
 import type { MissionTask } from '../types'
@@ -119,9 +118,6 @@ export function WeekPage() {
           <p className="t-caption">목표를 완주했거나 기간이 지났어요.</p>
         </div>
       )}
-
-      <div className="home-tabbar-spacer" />
-      <TabBar />
 
       <MissionEditSheet
         open={!!sheet}

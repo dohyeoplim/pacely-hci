@@ -6,7 +6,6 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 
 import { Button } from '../components/Button'
 import { PersonaCard } from '../components/PersonaCard'
-import { TabBar } from '../components/TabBar'
 import { usePacely } from '../lib/store/store'
 
 export function ProfilePage() {
@@ -162,8 +161,6 @@ export function ProfilePage() {
         </div>
       </section>
 
-      <div className="home-tabbar-spacer" />
-      <TabBar />
     </div>
   )
 }

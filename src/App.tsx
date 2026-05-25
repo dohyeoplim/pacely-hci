@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 import { AppShell } from './components/AppShell'
+import { TabBar } from './components/TabBar'
 import { usePacely } from './lib/store/store'
 import { buildDemoGoal } from './lib/store/seed'
 import { SplashPage } from './pages/SplashPage'
@@ -15,6 +16,8 @@ import { ProfilePage } from './pages/ProfilePage'
 import { PlanViewPage } from './pages/PlanViewPage'
 import { WeekPage } from './pages/WeekPage'
 import { HistoryPage } from './pages/HistoryPage'
+
+const TAB_ROUTES = new Set(['/home', '/week', '/record', '/profile'])
 
 function RootRedirect() {
   const { currentGoal } = usePacely()
@@ -30,17 +33,12 @@ export default function App() {
   const seededOnce = useRef(false)
   const orchestratorPrimed = useRef(false)
 
-  // Fire an app_open once the user has a goal so the orchestrator can
-  // generate its first contextual notification. Without this gate the seed
-  // path would fire too early — before currentGoal is in scope.
   useEffect(() => {
     if (!currentGoal || orchestratorPrimed.current) return
     orchestratorPrimed.current = true
     void recordEvent({ type: 'app_open', goalId: currentGoal.id })
   }, [currentGoal, recordEvent])
 
-  // `?seed=demo` populates the store with a realistic in-progress goal so the
-  // home / day-start / finish screens can be opened directly for demos.
   useEffect(() => {
     if (seededOnce.current) return
     const params = new URLSearchParams(location.search)
@@ -58,15 +56,16 @@ export default function App() {
     if (seed === 'demo' && !currentGoal) {
       void buildDemoGoal().then((goal) => {
         installGoal(goal)
-        // Strip the query string after seeding.
         navigate(location.pathname, { replace: true })
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search])
 
+  const showTabBar = TAB_ROUTES.has(location.pathname)
+
   return (
-    <AppShell>
+    <AppShell withTabBar={showTabBar}>
       <div className="route-frame" key={location.pathname}>
         <Routes location={location}>
           <Route path="/" element={<RootRedirect />} />
@@ -84,6 +83,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+      {showTabBar && <TabBar />}
     </AppShell>
   )
 }
