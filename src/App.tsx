@@ -16,6 +16,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { PlanViewPage } from './pages/PlanViewPage'
 import { WeekPage } from './pages/WeekPage'
 import { HistoryPage } from './pages/HistoryPage'
+import { ResearchPage } from './pages/ResearchPage'
 
 const TAB_ROUTES = new Set(['/home', '/week', '/record', '/profile'])
 
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/finish" element={<FinishPage />} />
           <Route path="/reward" element={<RewardPage />} />
+          <Route path="/research" element={<ResearchPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
