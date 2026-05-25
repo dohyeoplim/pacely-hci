@@ -14,6 +14,7 @@ import { ProgressRing } from '../components/ProgressRing'
 import { usePacely } from '../lib/store/store'
 import { dDay, fromISO, timeOfDay, todayISO } from '../lib/util'
 import type { MissionTask } from '../types'
+import pacelySymbol from '../assets/pacely-symbol.svg'
 
 const GREETING_BY_TIME: Record<ReturnType<typeof timeOfDay>, string> = {
   morning: '좋은 아침이에요',
@@ -88,7 +89,7 @@ export function HomePage() {
     ? `${state.user.name}님, ${GREETING_BY_TIME[tod]}`
     : GREETING_BY_TIME[tod]
   const sub = SUB_BY_TIME[tod]
-  const initial = state.user.name?.[0] ?? 'P'
+  const initial = state.user.name?.[0]
   const doneCount = todays.filter((m) => m.completed).length
   const allDone = todays.length > 0 && doneCount === todays.length
   const todaysPlanned =
@@ -107,7 +108,13 @@ export function HomePage() {
           <div className="home-head__sub t-caption">{sub}</div>
         </div>
         <div className="home-head__avatar" aria-hidden>
-          {initial}
+          {initial ?? (
+            <img
+              src={pacelySymbol}
+              alt=""
+              className="home-head__avatar-mark"
+            />
+          )}
         </div>
       </header>
 
