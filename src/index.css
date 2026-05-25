@@ -124,11 +124,29 @@ body {
   padding: 0;
   height: 100%;
   overflow-x: hidden;
+  /* Native-app feel: kill the system text-selection and the iOS callout. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  /* Block pinch / double-tap zoom on the chrome — inputs re-enable it. */
+  touch-action: manipulation;
 }
 
 body {
   background: var(--bg);
-  overscroll-behavior-y: none;
+  /* Contain rubber-band scroll at the document edges so the shell doesn't
+     bounce like a web page. */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Allow selection inside actual text inputs / editable surfaces. */
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: auto;
 }
 
 #root {
@@ -147,6 +165,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  overscroll-behavior: none;
 }
 
 .route-frame {
