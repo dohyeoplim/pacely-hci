@@ -167,6 +167,9 @@ function RewardItem({
 
 /* --- Grow tab ------------------------------------------------------------*/
 
+/* Pacely levels up one tier per completed goal, capped at Lv. 5. */
+const MAX_AVATAR_LEVEL = 5
+
 function GrowTab({
   level,
   sessions,
@@ -178,7 +181,7 @@ function GrowTab({
   traits: string[]
   category: GoalCategory
 }) {
-  const nextSessions = Math.max(0, (level + 1) * 1 - sessions)
+  const atMax = level >= MAX_AVATAR_LEVEL
   return (
     <div className="grow-tab">
       <div className="grow-tab__stage">
@@ -187,7 +190,9 @@ function GrowTab({
       <div className="grow-tab__head">
         <div className="grow-tab__level">Lv. {level}</div>
         <div className="t-caption">
-          누적 완주 {sessions}회 · 다음 레벨까지 {nextSessions}회
+          {atMax
+            ? `누적 완주 ${sessions}회 · 최고 레벨 달성`
+            : `누적 완주 ${sessions}회 · 한 번 더 완주하면 Lv. ${level + 1}`}
         </div>
       </div>
       <div className="grow-traits">
