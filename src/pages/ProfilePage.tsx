@@ -6,6 +6,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 
 import { Button } from '../components/Button'
 import { PersonaCard } from '../components/PersonaCard'
+import { isResearchMode, SURVEY_URL } from '../lib/experiment'
 import { usePacely } from '../lib/store/store'
 
 export function ProfilePage() {
@@ -31,6 +32,7 @@ export function ProfilePage() {
   const activeGoals = state.goals.filter((g) => g.status === 'active')
   const otherActiveGoals = activeGoals.filter((g) => g.id !== currentGoal.id)
   const hasHistory = state.goals.some((g) => g.status !== 'active')
+  const inStudy = isResearchMode(state.experiment)
 
   return (
     <div className="page profile-page">
@@ -161,6 +163,30 @@ export function ProfilePage() {
         </div>
       </section>
 
+      {inStudy && (
+        <section className="profile-section profile-survey">
+          <div className="t-body-strong">실험 참여 마지막 단계</div>
+          <p className="t-caption">
+            앱 사용 경험을 마무리하셨다면 짧은 설문 부탁드려요.
+          </p>
+          <a
+            className="btn btn--primary btn--block"
+            href={SURVEY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            최종 설문 작성하기 →
+          </a>
+        </section>
+      )}
+
+      <section className="profile-section profile-research">
+        <Link to="/research" className="profile-research-link">
+          <span>리서치 모드</span>
+          <span className="profile-research-link__arrow" aria-hidden>→</span>
+        </Link>
+        <p className="t-micro">HCI 실험 운영자용</p>
+      </section>
     </div>
   )
 }
