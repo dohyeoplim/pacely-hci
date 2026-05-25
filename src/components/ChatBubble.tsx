@@ -12,9 +12,12 @@ interface ChatBubbleProps {
 export function ChatBubble({ from, children, hideAvatar }: ChatBubbleProps) {
   if (from === 'pacely') {
     return (
-      <div className="chat-row chat-row--pacely">
+      <div
+        className={`chat-row chat-row--pacely ${
+          hideAvatar ? 'chat-row--continuation' : ''
+        }`}
+      >
         {!hideAvatar && <PacelyAvatar size={28} />}
-        {hideAvatar && <span className="chat-avatar-spacer" aria-hidden />}
         <div className="chat-bubble chat-bubble--pacely">{children}</div>
       </div>
     )

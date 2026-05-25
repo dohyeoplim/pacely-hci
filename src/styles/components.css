@@ -148,10 +148,12 @@
 .chat-row--user {
   justify-content: flex-end;
 }
-.chat-avatar-spacer {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
+/* Continuation bubbles tuck up under the previous one with a tighter top
+   gap and no avatar gutter, so consecutive Pacely lines read as one
+   thought. */
+.chat-row--pacely.chat-row--continuation {
+  margin-top: -4px;
+  margin-bottom: var(--sp-2);
 }
 .chat-bubble {
   max-width: 78%;
