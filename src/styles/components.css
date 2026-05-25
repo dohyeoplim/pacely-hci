@@ -245,10 +245,11 @@
   resize: none;
   width: 78%;
   max-width: 78%;
-  min-height: 56px;
   outline: none;
   font: inherit;
   letter-spacing: -0.005em;
+  overflow: hidden;
+  /* Height grows with content via the autosize effect in PlanningPage. */
 }
 .goal-input::placeholder {
   color: rgba(255, 255, 255, 0.55);
