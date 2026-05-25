@@ -370,6 +370,14 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
     [state.goals, state.currentGoalId],
   )
 
+  /* The orchestrator is async; we read currentGoal + events via a ref so
+     pending calls always see the latest state instead of a stale closure
+     captured when the callback was first created. */
+  const latest = useRef({ currentGoal, events: state.events })
+  useEffect(() => {
+    latest.current = { currentGoal, events: state.events }
+  }, [currentGoal, state.events])
+
   // The orchestrator runs out-of-band so the reducer stays pure.
   const orchestratorBusy = useRef(false)
 
@@ -405,9 +413,11 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       const event: UserEvent = { ...partial, at: Date.now() }
       const offline = typeof navigator !== 'undefined' && !navigator.onLine
       dispatch({ type: 'ADD_EVENT', event, offline })
-      await runOrchestrator(event, currentGoal, state.events)
+      /* Read live state via ref so a user that switches goals mid-async
+         doesn't trip the orchestrator with the previous goal. */
+      await runOrchestrator(event, latest.current.currentGoal, latest.current.events)
     },
-    [currentGoal, runOrchestrator, state.events],
+    [runOrchestrator],
   )
 
   const value: PacelyContextValue = useMemo(
