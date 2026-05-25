@@ -9,7 +9,7 @@ export function SplashPage() {
     <div className="splash-page page">
       <div className="splash-page__bg" aria-hidden />
       <div className="splash-page__inner">
-        <Logo size={88} />
+        <Logo size={56} />
         <h1 className="splash-page__title">Pacely</h1>
         <p className="splash-page__tagline">같은 페이스로, 함께.</p>
       </div>
