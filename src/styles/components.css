@@ -1069,8 +1069,8 @@
 /* Source SVG has no padding inside the viewBox, so we shrink the rendered
    image to leave breathing room around the glyph inside the chip. */
 .home-head__avatar-mark {
-  width: 44%;
-  height: 44%;
+  width: 25%;
+  height: 25%;
 }
 .home-goal {
   padding: 14px 16px;
