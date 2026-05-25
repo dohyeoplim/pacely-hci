@@ -16,6 +16,7 @@ import { getAgents } from '../agents'
 import { todayISO, uid } from '../util'
 import type {
   Battle,
+  Experiment,
   Goal,
   GoalCategory,
   MissionTask,
@@ -27,6 +28,7 @@ import type {
   User,
   UserEvent,
 } from '../../types'
+import { DEFAULT_EXPERIMENT } from '../experiment'
 import { generateMissions } from './missions'
 import { loadState, saveState } from './persist'
 import { emptyProgress, recomputeProgress } from './progress'
@@ -45,6 +47,7 @@ export interface PacelyState {
   rewards: Reward[]
   avatar: PacelyAvatar
   battles: Battle[]
+  experiment: Experiment
 }
 
 const DEFAULT_USER: User = {
@@ -63,6 +66,7 @@ const initialState: PacelyState = {
   rewards: [],
   avatar: initialAvatar(),
   battles: [],
+  experiment: DEFAULT_EXPERIMENT,
 }
 
 /* --- Actions -------------------------------------------------------------*/
@@ -93,6 +97,7 @@ type Action =
   | { type: 'REDEEM_REWARD'; id: string }
   | { type: 'ADD_BATTLE'; battle: Battle }
   | { type: 'UPDATE_BATTLE'; battle: Battle }
+  | { type: 'SET_EXPERIMENT'; patch: Partial<Experiment> }
   | { type: 'RESET' }
 
 const EVENT_LOG_CAP = 120
@@ -271,6 +276,12 @@ function reducer(state: PacelyState, action: Action): PacelyState {
         ),
       }
 
+    case 'SET_EXPERIMENT':
+      return {
+        ...state,
+        experiment: { ...state.experiment, ...action.patch },
+      }
+
     case 'RESET':
       return initialState
 
@@ -331,6 +342,8 @@ interface PacelyContextValue {
   reset: () => void
   /** Record an arbitrary event (e.g. `app_open`). */
   recordEvent: (event: Omit<UserEvent, 'at'>) => Promise<void>
+  /** Patch the HCI experiment config (participant ID, group, conditions). */
+  setExperiment: (patch: Partial<Experiment>) => void
 }
 
 const PacelyContext = createContext<PacelyContextValue | null>(null)
@@ -338,7 +351,7 @@ const PacelyContext = createContext<PacelyContextValue | null>(null)
 export function PacelyProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState, (s) => {
     const persisted = typeof window !== 'undefined' ? loadState() : null
-    // Backfill in case a previously-persisted state predates rewards/avatar/battles.
+    // Backfill in case a previously-persisted state predates new slices.
     return persisted
       ? {
           ...s,
@@ -346,6 +359,7 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
           rewards: persisted.rewards ?? [],
           avatar: persisted.avatar ?? initialAvatar(),
           battles: persisted.battles ?? [],
+          experiment: persisted.experiment ?? DEFAULT_EXPERIMENT,
         }
       : s
   })
@@ -556,6 +570,9 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       reset: () => dispatch({ type: 'RESET' }),
 
       recordEvent,
+
+      setExperiment: (patch) =>
+        dispatch({ type: 'SET_EXPERIMENT', patch }),
     }),
     [state, currentGoal, recordEvent],
   )

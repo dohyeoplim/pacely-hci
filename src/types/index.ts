@@ -195,3 +195,20 @@ export interface UserEvent {
   goalId?: string
   payload?: Record<string, unknown>
 }
+
+/* --- Experiment (HCI study) ----------------------------------------------*/
+
+export type ExperimentGroup = 'GA' | 'GB' | 'GC'
+export type Lab1Order = 'companion-first' | 'coach-first'
+export type Lab2Condition = 'G1' | 'G2' | 'G3'
+
+export interface Experiment {
+  /** Empty string when not in a study. */
+  participantId: string
+  group: ExperimentGroup | null
+  lab1Order: Lab1Order | null
+  lab2Condition: Lab2Condition | null
+  /** GC hides reward UI; GB shows it. Used as the source of truth even when
+      group changes mid-study, so the researcher can override. */
+  rewardEnabled: boolean
+}
