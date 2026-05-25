@@ -90,10 +90,9 @@ export function WeekPage() {
                 <div className="week-row__expand">
                   <MissionList
                     missions={dayMissions}
-                    onToggle={(id) => {
-                      if (d.date === today) void toggleMission(id)
-                    }}
+                    onToggle={isToday ? (id) => void toggleMission(id) : undefined}
                     onEdit={(m) => setSheet({ mode: 'edit', mission: m })}
+                    readOnly={!isToday}
                   />
                   <button
                     className="add-task-btn"
