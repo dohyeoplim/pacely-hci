@@ -5,7 +5,7 @@
    Compete: start / track a battle against a randomly assigned opponent. */
 
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 
 import { BackButton } from '../components/BackButton'
 import { Button } from '../components/Button'
@@ -22,6 +22,13 @@ export function RewardPage() {
   const { state, currentGoal, redeemReward, startBattle, refreshBattles } =
     usePacely()
   const [tab, setTab] = useState<Tab>('earn')
+
+  /* The researcher disables the reward surface for the GC group. If someone
+     deep-links to /reward, bounce them back to home so the test condition
+     stays clean. */
+  if (!state.experiment.rewardEnabled) {
+    return <Navigate to="/home" replace />
+  }
 
   // Re-tick opponent progress whenever the user opens the Compete tab.
   useEffect(() => {

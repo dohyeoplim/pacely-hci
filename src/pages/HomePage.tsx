@@ -184,8 +184,11 @@ export function HomePage() {
           </div>
           <div className="home-status__body">
             <div className="t-body-strong">오늘 다 했어요!</div>
-            <Link to="/reward" className="home-status__link">
-              내 자취 보기 →
+            <Link
+              to={state.experiment.rewardEnabled ? '/reward' : '/record'}
+              className="home-status__link"
+            >
+              {state.experiment.rewardEnabled ? '내 자취 보기 →' : '기록 보기 →'}
             </Link>
           </div>
         </section>
