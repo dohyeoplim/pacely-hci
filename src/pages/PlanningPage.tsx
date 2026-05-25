@@ -95,8 +95,18 @@ export function PlanningPage() {
   const [planLoading, setPlanLoading] = useState(false)
 
   const bodyRef = useRef<HTMLDivElement>(null)
+  const goalTextareaRef = useRef<HTMLTextAreaElement>(null)
   const steps = useMemo(() => stepsFor(category), [category])
   const stepIndex = steps.indexOf(step)
+
+  /* Grow the goal-input textarea with its content instead of locking it at a
+     fixed height — feels like a normal chat composer. */
+  useEffect(() => {
+    const el = goalTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [pendingText, step])
 
   const title = useMemo(() => {
     if (!category) return 'Pacely와 목표를 정해봐요.'
@@ -129,13 +139,36 @@ export function PlanningPage() {
     }
   }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
 
+  /* Smooth auto-scroll to the latest chat bubble.
+
+     Step / plan transitions are the obvious triggers, but the chat also grows
+     mid-step (calendar pick → "N일의 계획" bubble; subject chips; textarea
+     autosize). A ResizeObserver on the body element catches every growth and
+     scrolls past it so the next prompt is always in view. */
   useEffect(() => {
     const el = bodyRef.current
     if (!el) return
-    const id = window.requestAnimationFrame(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+
+    const scrollToBottom = () => {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: 'smooth',
+        })
+      })
+    }
+
+    scrollToBottom()
+    if (typeof ResizeObserver === 'undefined') return
+
+    let lastHeight = el.getBoundingClientRect().height
+    const ro = new ResizeObserver(() => {
+      const h = el.getBoundingClientRect().height
+      if (h > lastHeight + 1) scrollToBottom()
+      lastHeight = h
     })
-    return () => window.cancelAnimationFrame(id)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [step, plan])
 
   const goToNext = () => {
@@ -252,10 +285,11 @@ export function PlanningPage() {
             </ChatBubble>
             <div className="chat-row chat-row--user">
               <textarea
+                ref={goalTextareaRef}
                 className="goal-input chat-bubble chat-bubble--user"
                 value={pendingText}
                 placeholder="목표를 자유롭게 적어주세요."
-                rows={2}
+                rows={1}
                 autoFocus
                 onChange={(e) => setPendingText(e.target.value)}
                 onBlur={onConfirmGoalText}
