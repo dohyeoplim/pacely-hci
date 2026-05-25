@@ -3,6 +3,9 @@
 import type { ISODate } from '../types'
 
 export function uid(prefix = 'id'): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}_${crypto.randomUUID().slice(0, 8)}`
+  }
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
@@ -10,8 +13,13 @@ export function todayISO(): ISODate {
   return toISO(new Date())
 }
 
+/** Calendar-day ISO string (YYYY-MM-DD) in the user's local time zone.
+   Using `toISOString` would return UTC and roll over a day too early in Asia. */
 export function toISO(d: Date): ISODate {
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 export function fromISO(s: ISODate): Date {
