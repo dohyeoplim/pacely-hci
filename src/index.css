@@ -1,111 +1,298 @@
+/* ===========================================================================
+   Pacely — Design System Tokens
+   Dark, Navy-based theme. Mobile-first. iPhone safe-area aware.
+   =========================================================================== */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* --- Brand: Pacely Navy --------------------------------------------------*/
+  --navy-900: #0b0e2e; /* app background (darkest) */
+  --navy-800: #12164a;
+  --navy-700: #1a2068;
+  --navy-600: #1b2a8c;
+  --navy-500: #2030a0; /* Primary — Pacely-Navy-500 */
+  --navy-400: #3a48c0;
+  --navy-300: #6470db;
+  --navy-200: #9aa3ec;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* --- Accents ------------------------------------------------------------*/
+  --you: #ff7ba8;        /* "You" — user progress (pink) */
+  --you-soft: #ff7ba833;
+  --pacely: #4da6ff;     /* "Pacely" — companion runner (blue) */
+  --pacely-soft: #4da6ff33;
+  --lavender: #c7c9f5;   /* light lavender, supporting tone */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
+  /* --- Semantic -----------------------------------------------------------*/
+  --success: #3ddc97;
+  --warning: #ffc15e;
+  --danger: #ff6b6b;
+
+  /* --- Surfaces -----------------------------------------------------------*/
+  --bg: var(--navy-900);
+  --surface: #14183c;          /* card background */
+  --surface-raised: #1c2150;   /* elevated card / modal */
+  --surface-hover: #232a63;
+  --border: #2b3170;
+  --border-soft: #20254f;
+  --overlay: rgba(5, 7, 24, 0.72);
+
+  /* --- Text ---------------------------------------------------------------*/
+  --text: #f4f5ff;          /* high-contrast primary */
+  --text-secondary: #aab0d8;
+  --text-tertiary: #6b7099;
+  --text-on-primary: #ffffff;
+
+  /* --- Gradients ----------------------------------------------------------*/
+  --grad-navy: linear-gradient(160deg, #2a3bc0 0%, #1a2068 60%, #0b0e2e 100%);
+  --grad-primary: linear-gradient(135deg, #3a48c0 0%, #2030a0 100%);
+  --grad-celebrate: linear-gradient(160deg, #3a48c0 0%, #2030a0 50%, #12164a 100%);
+
+  /* --- Elevation ----------------------------------------------------------*/
+  --shadow-sm: 0 2px 8px rgba(5, 7, 24, 0.4);
+  --shadow-md: 0 8px 24px rgba(5, 7, 24, 0.5);
+  --shadow-lg: 0 16px 48px rgba(5, 7, 24, 0.6);
+  --glow-primary: 0 0 24px rgba(58, 72, 192, 0.45);
+
+  /* --- Radii --------------------------------------------------------------*/
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* --- Spacing scale (4pt) ------------------------------------------------*/
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* --- Typography ---------------------------------------------------------*/
+  --font-sans: 'Pretendard Variable', Pretendard, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+
+  /* Type scale: Display / Title / Body / Caption */
+  --fs-display: 32px;
+  --lh-display: 1.25;
+  --fs-title-lg: 24px;
+  --fs-title: 20px;
+  --lh-title: 1.32;
+  --fs-body-lg: 17px;
+  --fs-body: 15px;
+  --lh-body: 1.55;
+  --fs-caption: 13px;
+  --fs-micro: 11px;
+  --lh-caption: 1.4;
+
+  /* --- Layout -------------------------------------------------------------*/
+  --app-max-width: 430px;
+  --page-pad-x: 20px;
+  --tabbar-height: 72px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* --- Motion -------------------------------------------------------------*/
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+
+  color-scheme: dark;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+* {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
 }
 
+body {
+  background: var(--bg);
+  overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100svh;
+  overflow-x: hidden;
+}
+
+/* The app renders inside a phone-width column, centered on larger screens. */
+.app-shell {
+  width: 100%;
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+  min-height: 100svh;
+  position: relative;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.route-frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  animation: route-in 320ms var(--ease-out) both;
+  will-change: transform, opacity;
+}
+
+@keyframes route-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 431px) {
+  body {
+    background: #050616;
+    background-image:
+      radial-gradient(circle at 30% 0%, rgba(58, 72, 192, 0.18), transparent 60%),
+      radial-gradient(circle at 80% 100%, rgba(36, 48, 140, 0.18), transparent 60%);
+  }
+  .app-shell {
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* --- Element resets -------------------------------------------------------*/
 h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
+h2,
+h3,
+h4,
 p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+a {
+  color: var(--navy-200);
+  text-decoration: none;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+img,
+svg {
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--navy-300);
+  outline-offset: 2px;
+}
+
+/* --- Typography utility classes ------------------------------------------*/
+.t-display {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.t-title-lg {
+  font-size: var(--fs-title-lg);
+  line-height: var(--lh-title);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.t-title {
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.t-body-lg {
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body);
+  font-weight: 400;
+}
+.t-body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: 400;
+}
+.t-body-strong {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: 600;
+}
+.t-caption {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.t-micro {
+  font-size: var(--fs-micro);
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+.text-tertiary {
+  color: var(--text-tertiary);
+}
+
+/* --- Reduced motion -------------------------------------------------------*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* --- Scrollbars (subtle) --------------------------------------------------*/
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
