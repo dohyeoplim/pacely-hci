@@ -7,13 +7,15 @@ import { useNavigate } from 'react-router-dom'
 import { BackButton } from '../components/BackButton'
 import { Button } from '../components/Button'
 import { Confetti } from '../components/Confetti'
+import { isResearchMode, SURVEY_URL } from '../lib/experiment'
 import { usePacely } from '../lib/store/store'
 import { daysBetween, formatHours } from '../lib/util'
 
 export function FinishPage() {
   const navigate = useNavigate()
-  const { currentGoal } = usePacely()
+  const { currentGoal, state } = usePacely()
   const [shareHint, setShareHint] = useState<string | null>(null)
+  const inStudy = isResearchMode(state.experiment)
   /* The goal_finished event is already recorded inside `finishGoal()` in the
      store, so we do not refire it here — landing on /finish should be a pure
      view of the completion state. */
@@ -103,10 +105,34 @@ export function FinishPage() {
 
       {shareHint && <div className="finish-share-hint">{shareHint}</div>}
 
+      {inStudy && (
+        <section className="finish-survey">
+          <div className="finish-survey__head">
+            <span className="finish-survey__tag">실험 참여자 안내</span>
+            <div className="t-body-strong">
+              경험을 잠깐 들려주실래요?
+            </div>
+            <p className="t-caption">
+              짧은 설문이에요. 결과는 익명으로 분석돼요.
+            </p>
+          </div>
+          <a
+            className="btn btn--primary btn--block"
+            href={SURVEY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            최종 설문 작성하기 →
+          </a>
+        </section>
+      )}
+
       <div className="finish-cta finish-cta--stack">
-        <Button block onClick={() => navigate('/reward')}>
-          보상 확인하기
-        </Button>
+        {state.experiment.rewardEnabled && (
+          <Button block onClick={() => navigate('/reward')}>
+            보상 확인하기
+          </Button>
+        )}
         <div className="finish-cta-row">
           <Button block variant="secondary" onClick={onShare}>
             공유하기
