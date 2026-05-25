@@ -19,7 +19,7 @@ import { PlanDailyStrip } from '../components/PlanDailyStrip'
 import { SubjectInput } from '../components/SubjectInput'
 import { getAgents } from '../lib/agents'
 import { usePacely } from '../lib/store/store'
-import { todayISO } from '../lib/util'
+import { addDays, todayISO } from '../lib/util'
 import type { GoalCategory, Persona, Plan } from '../types'
 
 type Step = 'category' | 'subjects' | 'period' | 'hours' | 'persona' | 'plan'
@@ -107,6 +107,19 @@ export function PlanningPage() {
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
   }, [pendingText, step])
+
+  /* Pre-seed the date range so the user lands on a sensible default instead
+     of an empty calendar. Anchor at today + 14 days with a small ±3-day
+     jitter so demo screenshots and the LAB2-L "2주 프로젝트" framing don't
+     feel templated. Skips if the user has already started picking. */
+  useEffect(() => {
+    if (!category || range.start) return
+    const offset = 11 + Math.floor(Math.random() * 7) // 11..17 days inclusive
+    setRange({
+      start: todayISO(),
+      end: addDays(todayISO(), offset),
+    })
+  }, [category, range.start])
 
   const title = useMemo(() => {
     if (!category) return 'Pacely와 목표를 정해봐요.'
