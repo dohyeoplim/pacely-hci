@@ -1066,9 +1066,11 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.12),
     0 4px 12px rgba(5, 7, 24, 0.4);
 }
+/* Source SVG has no padding inside the viewBox, so we shrink the rendered
+   image to leave breathing room around the glyph inside the chip. */
 .home-head__avatar-mark {
-  width: 58%;
-  height: 58%;
+  width: 44%;
+  height: 44%;
 }
 .home-goal {
   padding: 14px 16px;
