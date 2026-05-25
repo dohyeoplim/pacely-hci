@@ -1,7 +1,7 @@
 /* Co-Finish — completion screen (spec §F3). Tap "다음 목표 세우기" to roll
    into a new planning flow. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { BackButton } from '../components/BackButton'
@@ -12,16 +12,11 @@ import { daysBetween, formatHours } from '../lib/util'
 
 export function FinishPage() {
   const navigate = useNavigate()
-  const { currentGoal, recordEvent } = usePacely()
+  const { currentGoal } = usePacely()
   const [shareHint, setShareHint] = useState<string | null>(null)
-
-  // Fire goal_finished once on landing here so the orchestrator can react.
-  useEffect(() => {
-    if (currentGoal && currentGoal.status === 'finished') {
-      void recordEvent({ type: 'goal_finished', goalId: currentGoal.id })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  /* The goal_finished event is already recorded inside `finishGoal()` in the
+     store, so we do not refire it here — landing on /finish should be a pure
+     view of the completion state. */
 
   const onShare = async () => {
     if (!currentGoal || !stats) return
