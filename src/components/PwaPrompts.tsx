@@ -14,18 +14,35 @@ interface BeforeInstallPromptEvent extends Event {
 const INSTALL_KEY = 'pacely.install.dismissed'
 const NOTI_KEY = 'pacely.notification.dismissed'
 
+function rememberDismissal(key: string): void {
+  try {
+    localStorage.setItem(key, '1')
+  } catch {
+    /* Quota exceeded or storage disabled — the ribbon will reappear next
+       session, which is harmless. */
+  }
+}
+
+function readDismissal(key: string): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && !!localStorage.getItem(key)
+  } catch {
+    return false
+  }
+}
+
 export function PwaPrompts() {
   const [installEvent, setInstallEvent] =
     useState<BeforeInstallPromptEvent | null>(null)
   const [installDismissed, setInstallDismissed] = useState(
-    () => typeof localStorage !== 'undefined' && !!localStorage.getItem(INSTALL_KEY),
+    () => readDismissal(INSTALL_KEY),
   )
   const [notiState, setNotiState] = useState<NotificationPermission | null>(
     () =>
       typeof Notification !== 'undefined' ? Notification.permission : null,
   )
   const [notiDismissed, setNotiDismissed] = useState(
-    () => typeof localStorage !== 'undefined' && !!localStorage.getItem(NOTI_KEY),
+    () => readDismissal(NOTI_KEY),
   )
 
   useEffect(() => {
@@ -58,7 +75,7 @@ export function PwaPrompts() {
               if (!installEvent) return
               await installEvent.prompt()
               await installEvent.userChoice
-              localStorage.setItem(INSTALL_KEY, '1')
+              rememberDismissal(INSTALL_KEY)
               setInstallEvent(null)
               setInstallDismissed(true)
             }}
@@ -69,7 +86,7 @@ export function PwaPrompts() {
             className="pwa-ribbon__close"
             aria-label="닫기"
             onClick={() => {
-              localStorage.setItem(INSTALL_KEY, '1')
+              rememberDismissal(INSTALL_KEY)
               setInstallDismissed(true)
             }}
           >
@@ -91,7 +108,7 @@ export function PwaPrompts() {
               const perm = await Notification.requestPermission()
               setNotiState(perm)
               if (perm !== 'default') {
-                localStorage.setItem(NOTI_KEY, '1')
+                rememberDismissal(NOTI_KEY)
                 setNotiDismissed(true)
               }
             }}
@@ -102,7 +119,7 @@ export function PwaPrompts() {
             className="pwa-ribbon__close"
             aria-label="닫기"
             onClick={() => {
-              localStorage.setItem(NOTI_KEY, '1')
+              rememberDismissal(NOTI_KEY)
               setNotiDismissed(true)
             }}
           >
