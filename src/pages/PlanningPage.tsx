@@ -123,6 +123,11 @@ export function PlanningPage() {
   const [goalReaction, setGoalReaction] = useState<GoalReaction | null>(null)
   const [goalParsing, setGoalParsing] = useState(false)
   const [suggestedDays, setSuggestedDays] = useState<number | null>(null)
+  /* Follow-up dialogue state — user can optionally answer Pacely's
+     clarifying question, and the answer is folded back into the goal text
+     so subsequent plan/missions calls see the enriched context. */
+  const [followUpPending, setFollowUpPending] = useState('')
+  const [followUpAnswer, setFollowUpAnswer] = useState<string | null>(null)
 
   const [draftMissions, setDraftMissions] = useState<MissionTask[]>([])
   const [reviseOpen, setReviseOpen] = useState(false)
@@ -132,16 +137,25 @@ export function PlanningPage() {
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const goalTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const followUpTextareaRef = useRef<HTMLTextAreaElement>(null)
   const steps = useMemo(() => stepsFor(category), [category])
   const stepIndex = steps.indexOf(step)
 
-  /* Goal-input textarea autosize. */
+  /* Goal-input textarea autosize (height). Width is driven by the hidden
+     mirror via the .goal-input-wrap wrapper. */
   useEffect(() => {
     const el = goalTextareaRef.current
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
   }, [pendingText, step])
+
+  useEffect(() => {
+    const el = followUpTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [followUpPending])
 
   /* Pre-fill the calendar from the LLM's suggested days when first entering
      the period step. */
@@ -168,7 +182,7 @@ export function PlanningPage() {
     void (async () => {
       try {
         const p = await agents.planner.decomposeGoal({
-          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
+          goalText: enrichedGoalText || CATEGORY_DEFAULT_TITLE[category],
           category,
           startDate: range.start!,
           endDate: range.end!,
@@ -191,7 +205,7 @@ export function PlanningPage() {
         console.warn('[PlanningPage] LLM planner failed, falling back', err)
         const mockAgents = createMockAgents()
         const p = await mockAgents.planner.decomposeGoal({
-          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
+          goalText: enrichedGoalText || CATEGORY_DEFAULT_TITLE[category],
           category,
           startDate: range.start!,
           endDate: range.end!,
@@ -211,42 +225,22 @@ export function PlanningPage() {
     return () => {
       cancelled = true
     }
-  }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
+  }, [
+    step,
+    plan,
+    category,
+    goalText,
+    followUpAnswer,
+    range,
+    hours,
+    chosenPersona,
+    subjects,
+  ])
 
-  /* Auto-scroll the chat to the latest bubble — robust against iOS Safari
-     quirks, route-in animation, and async LLM responses. */
-  useEffect(() => {
-    const body = bodyRef.current
-    if (!body) return
-    const root = document.scrollingElement || document.documentElement
-    let scheduled: number[] = []
-    const clearScheduled = () => {
-      scheduled.forEach((id) => window.clearTimeout(id))
-      scheduled = []
-    }
-    const scrollNow = () => {
-      root.scrollTo({ top: root.scrollHeight, behavior: 'smooth' })
-    }
-    const burst = () => {
-      clearScheduled()
-      window.requestAnimationFrame(scrollNow)
-      scheduled.push(
-        window.setTimeout(scrollNow, 80),
-        window.setTimeout(scrollNow, 240),
-      )
-    }
-    burst()
-    const mo = new MutationObserver(burst)
-    mo.observe(body, { childList: true, subtree: true, characterData: true })
-    const ro =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(burst) : null
-    ro?.observe(body)
-    return () => {
-      clearScheduled()
-      mo.disconnect()
-      ro?.disconnect()
-    }
-  }, [step])
+  /* Auto-scroll deliberately removed. The smooth-scroll-on-mutation pattern
+     was fighting user input (locked scroll once it kicked in) and felt
+     worse than letting users scroll themselves. New bubbles append below
+     naturally; users see them in the normal scroll position. */
 
   const goToNext = () => {
     const i = steps.indexOf(step)
@@ -263,12 +257,22 @@ export function PlanningPage() {
     setStep(steps[i - 1])
   }
 
+  /* Compose the enriched goal text that downstream calls see — original
+     sentence plus any clarifying follow-up answer the user gave. */
+  const enrichedGoalText = useMemo(() => {
+    if (!followUpAnswer) return goalText
+    return `${goalText}\n\n[추가 정보] ${followUpAnswer}`
+  }, [goalText, followUpAnswer])
+
   /* Submit the user's goal sentence — LLM infers category, drafts a reply,
      and suggests subjects + duration. */
   const onSubmitGoal = async () => {
     const text = pendingText.trim()
     if (!text) return
     setGoalText(text)
+    /* Reset any prior follow-up answer when the seed sentence changes. */
+    setFollowUpAnswer(null)
+    setFollowUpPending('')
     setGoalParsing(true)
     try {
       const agent = getAgents().planner
@@ -302,6 +306,15 @@ export function PlanningPage() {
     } finally {
       setGoalParsing(false)
     }
+  }
+
+  /* Confirm the follow-up answer — locks it in and clears the pending
+     textarea. Does NOT re-run parseGoal (kept light); the answer is folded
+     into enrichedGoalText for plan + missions generation. */
+  const onConfirmFollowUp = () => {
+    const ans = followUpPending.trim()
+    if (!ans) return
+    setFollowUpAnswer(ans)
   }
 
   /* User can override the LLM's inferred category via a small chip switcher. */
@@ -402,26 +415,33 @@ export function PlanningPage() {
               자유롭게 적어주세요 — 같이 다듬어볼게요.
             </ChatBubble>
             <div className="chat-row chat-row--user">
-              <textarea
-                ref={goalTextareaRef}
-                className="goal-input chat-bubble chat-bubble--user"
-                value={pendingText}
-                placeholder="예: 2주 안에 운영체제 시험 준비하기"
-                rows={1}
-                autoFocus
-                onChange={(e) => setPendingText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === 'Enter' &&
-                    !e.shiftKey &&
-                    !goalParsing &&
-                    pendingText.trim()
-                  ) {
-                    e.preventDefault()
-                    void onSubmitGoal()
-                  }
-                }}
-              />
+              <div className="goal-input-wrap">
+                <textarea
+                  ref={goalTextareaRef}
+                  className="goal-input chat-bubble chat-bubble--user"
+                  value={pendingText}
+                  placeholder="예: 2주 안에 운영체제 시험 준비하기"
+                  rows={1}
+                  autoFocus
+                  onChange={(e) => setPendingText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === 'Enter' &&
+                      !e.shiftKey &&
+                      !goalParsing &&
+                      pendingText.trim()
+                    ) {
+                      e.preventDefault()
+                      void onSubmitGoal()
+                    }
+                  }}
+                />
+                {/* Hidden mirror — drives the wrapper's width via min/max
+                    content sizing in CSS. */}
+                <span className="goal-input-mirror" aria-hidden>
+                  {pendingText || '예: 2주 안에 운영체제 시험 준비하기'}
+                </span>
+              </div>
             </div>
 
             {goalParsing && (
@@ -435,11 +455,6 @@ export function PlanningPage() {
             {!goalParsing && goalReaction && (
               <>
                 <ChatBubble from="pacely">{goalReaction.greeting}</ChatBubble>
-                {goalReaction.followUp && (
-                  <ChatBubble from="pacely" hideAvatar>
-                    {goalReaction.followUp}
-                  </ChatBubble>
-                )}
                 {category && (
                   <div className="category-pill-row">
                     <span className="t-micro">분류</span>
@@ -459,6 +474,62 @@ export function PlanningPage() {
                     ))}
                   </div>
                 )}
+
+                {goalReaction.followUp && (
+                  <>
+                    <ChatBubble from="pacely" hideAvatar>
+                      {goalReaction.followUp}
+                    </ChatBubble>
+                    {followUpAnswer ? (
+                      /* User locked in their answer — echo it as a sent
+                         message and offer to edit. */
+                      <>
+                        <div className="chat-row chat-row--user">
+                          <div className="chat-bubble chat-bubble--user">
+                            {followUpAnswer}
+                          </div>
+                        </div>
+                        <button
+                          className="link-button"
+                          onClick={() => {
+                            setFollowUpAnswer(null)
+                            setFollowUpPending('')
+                          }}
+                        >
+                          답변 다시 적기
+                        </button>
+                      </>
+                    ) : (
+                      <div className="chat-row chat-row--user">
+                        <div className="goal-input-wrap">
+                          <textarea
+                            ref={followUpTextareaRef}
+                            className="goal-input chat-bubble chat-bubble--user"
+                            value={followUpPending}
+                            placeholder="이렇게 답해줘…"
+                            rows={1}
+                            onChange={(e) =>
+                              setFollowUpPending(e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === 'Enter' &&
+                                !e.shiftKey &&
+                                followUpPending.trim()
+                              ) {
+                                e.preventDefault()
+                                onConfirmFollowUp()
+                              }
+                            }}
+                          />
+                          <span className="goal-input-mirror" aria-hidden>
+                            {followUpPending || '이렇게 답해줘…'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
 
@@ -473,6 +544,13 @@ export function PlanningPage() {
                 </Button>
               ) : (
                 <>
+                  {goalReaction.followUp &&
+                    !followUpAnswer &&
+                    followUpPending.trim() && (
+                      <Button block onClick={onConfirmFollowUp}>
+                        이렇게 가요
+                      </Button>
+                    )}
                   <Button block onClick={goToNext}>
                     다음 단계로
                   </Button>
