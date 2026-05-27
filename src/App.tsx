@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 
 import { AppShell } from './components/AppShell'
 import { TabBar } from './components/TabBar'
+import { eventLogger, logEvent } from './lib/metrics/eventLogger'
 import { usePacely } from './lib/store/store'
 import { buildDemoGoal } from './lib/store/seed'
 import { SplashPage } from './pages/SplashPage'
@@ -33,6 +34,30 @@ export default function App() {
   const navigate = useNavigate()
   const seededOnce = useRef(false)
   const orchestratorPrimed = useRef(false)
+  const appSessionStarted = useRef(false)
+  const lastRoute = useRef<string | null>(null)
+
+  // One-shot per mount: open a fresh app session ID, replay any persisted
+  // queue from previous browser sessions, and log the open.
+  useEffect(() => {
+    if (appSessionStarted.current) return
+    appSessionStarted.current = true
+    eventLogger.resetAppSession()
+    logEvent({ type: 'app_session_start' })
+  }, [])
+
+  // Route changes. We emit on every pathname transition (no double-fire
+  // on the same path) so we can downstream-compute time-on-route.
+  useEffect(() => {
+    eventLogger.setRoute(location.pathname)
+    if (lastRoute.current === location.pathname) return
+    const previous = lastRoute.current
+    lastRoute.current = location.pathname
+    logEvent({
+      type: 'route_change',
+      payload: { to: location.pathname, from: previous },
+    })
+  }, [location.pathname])
 
   useEffect(() => {
     if (!currentGoal || orchestratorPrimed.current) return

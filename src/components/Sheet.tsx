@@ -4,20 +4,34 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
+import { logEvent } from '../lib/metrics/eventLogger'
+
 interface SheetProps {
   open: boolean
   title?: string
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** Stable name used in the event stream (e.g. "mission_edit",
+      "plan_revise", "burden_survey"). When provided we emit
+      sheet_opened / sheet_closed automatically. */
+  analyticsName?: string
 }
 
-export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
+export function Sheet({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  analyticsName,
+}: SheetProps) {
   const titleId = useId()
   const sheetRef = useRef<HTMLElement | null>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
   // Prevents a touch-then-click double event from firing onClose twice on iOS.
   const closingRef = useRef(false)
+  const openedAt = useRef<number | null>(null)
 
   useEffect(() => {
     if (!open) {
@@ -28,6 +42,11 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
       typeof document !== 'undefined'
         ? (document.activeElement as HTMLElement | null)
         : null
+
+    if (analyticsName) {
+      openedAt.current = Date.now()
+      logEvent({ type: 'sheet_opened', sheetName: analyticsName })
+    }
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -50,8 +69,17 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
       document.body.style.overflow = prev
       window.clearTimeout(t)
       previouslyFocused.current?.focus?.()
+      if (analyticsName && openedAt.current != null) {
+        const dwellMs = Date.now() - openedAt.current
+        openedAt.current = null
+        logEvent({
+          type: 'sheet_closed',
+          sheetName: analyticsName,
+          payload: { dwellMs },
+        })
+      }
     }
-  }, [open, onClose])
+  }, [open, onClose, analyticsName])
 
   if (!open) return null
 

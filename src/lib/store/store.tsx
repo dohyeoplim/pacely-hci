@@ -10,6 +10,7 @@ import {
 } from 'react'
 
 import { getAgents } from '../agents'
+import { eventLogger, logEvent } from '../metrics/eventLogger'
 import { todayISO, uid } from '../util'
 import type {
   Battle,
@@ -357,6 +358,23 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
     latest.current = { currentGoal, events: state.events }
   }, [currentGoal, state.events])
 
+  // Mirror the bits of state the event logger needs. We don't put the
+  // logger inside React because event capture must work from imperative
+  // code paths (orchestrator callbacks, beforeunload) too.
+  useEffect(() => {
+    eventLogger.setContext({
+      experiment: state.experiment,
+      persona: state.user.personaPreference,
+      currentGoal,
+    })
+  }, [state.experiment, state.user.personaPreference, currentGoal])
+
+  // Replay any persisted queue from a previous (offline / killed) session
+  // as soon as the provider mounts.
+  useEffect(() => {
+    void eventLogger.flushNow()
+  }, [])
+
   const orchestratorBusy = useRef(false)
 
   const runOrchestrator = useCallback(
@@ -371,6 +389,16 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
             type: 'ADD_NOTIFICATIONS',
             notifications: result.notifications,
           })
+          // Notifications arrive as orchestrator output — one event per
+          // notification so analytics can break them down by trigger.
+          for (const noti of result.notifications) {
+            logEvent({
+              type: 'notification_received',
+              notificationTrigger: noti.trigger,
+              goal,
+              payload: { notificationId: noti.id, message: noti.message },
+            })
+          }
         }
         if (result.replannedPlan && goal) {
           dispatch({
@@ -391,6 +419,31 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       const event: UserEvent = { ...partial, at: Date.now() }
       const offline = typeof navigator !== 'undefined' && !navigator.onLine
       dispatch({ type: 'ADD_EVENT', event, offline })
+
+      // Mirror every UserEvent into the Notion event stream. The existing
+      // app already has well-typed coverage of lifecycle moments
+      // (app_open, day_started, mission_*, plan_created, goal_finished)
+      // so we get most of the value just by piggy-backing on it.
+      const goal =
+        latest.current.currentGoal && event.goalId
+          ? (latest.current.currentGoal.id === event.goalId
+              ? latest.current.currentGoal
+              : null)
+          : latest.current.currentGoal
+      const mission = (() => {
+        if (!goal || !event.payload) return null
+        const mid = event.payload['missionId'] as string | undefined
+        if (!mid) return null
+        return goal.missions.find((m) => m.id === mid) ?? null
+      })()
+      logEvent({
+        type: event.type,
+        goal,
+        mission,
+        milestoneReached: Boolean(event.payload?.milestoneReached),
+        payload: event.payload,
+      })
+
       await runOrchestrator(event, latest.current.currentGoal, latest.current.events)
     },
     [runOrchestrator],
@@ -432,10 +485,18 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       },
 
       switchGoal: (goalId) => {
+        const target = state.goals.find((g) => g.id === goalId) ?? null
+        logEvent({
+          type: 'goal_switched',
+          goal: target,
+          payload: { from: currentGoal?.id ?? null, to: goalId },
+        })
         dispatch({ type: 'SWITCH_GOAL', goalId })
       },
 
       abandonGoal: (goalId) => {
+        const target = state.goals.find((g) => g.id === goalId) ?? null
+        logEvent({ type: 'goal_abandoned', goal: target })
         dispatch({ type: 'ABANDON_GOAL', goalId })
       },
 
@@ -463,7 +524,23 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
           await recordEvent({
             type: 'mission_completed',
             goalId: currentGoal.id,
-            payload: { milestoneReached: justFinishedToday },
+            payload: {
+              missionId,
+              missionTitle: before.title,
+              estimatedMinutes: before.estimatedMinutes,
+              wasLate: before.date < todayISO(),
+              milestoneReached: justFinishedToday,
+            },
+          })
+        } else if (before && before.completed) {
+          await recordEvent({
+            type: 'mission_uncompleted',
+            goalId: currentGoal.id,
+            payload: {
+              missionId,
+              missionTitle: before.title,
+              estimatedMinutes: before.estimatedMinutes,
+            },
           })
         }
       },
@@ -478,29 +555,48 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
           completed: false,
         }
         dispatch({ type: 'ADD_MISSION', goalId: currentGoal.id, mission })
+        logEvent({ type: 'mission_added', goal: currentGoal, mission })
       },
 
       editMission: (id, patch) => {
         if (!currentGoal) return
+        const before = currentGoal.missions.find((m) => m.id === id) ?? null
         dispatch({
           type: 'EDIT_MISSION',
           goalId: currentGoal.id,
           missionId: id,
           patch,
         })
+        logEvent({
+          type: 'mission_edited',
+          goal: currentGoal,
+          mission: before,
+          payload: { patch },
+        })
       },
 
       deleteMission: (id) => {
         if (!currentGoal) return
+        const before = currentGoal.missions.find((m) => m.id === id) ?? null
         dispatch({
           type: 'DELETE_MISSION',
           goalId: currentGoal.id,
           missionId: id,
         })
+        logEvent({ type: 'mission_deleted', goal: currentGoal, mission: before })
       },
 
-      markNotificationRead: (id) =>
-        dispatch({ type: 'MARK_NOTIFICATION_READ', id }),
+      markNotificationRead: (id) => {
+        const noti = state.notifications.find((n) => n.id === id)
+        if (noti && !noti.read) {
+          logEvent({
+            type: 'notification_read',
+            notificationTrigger: noti.trigger,
+            payload: { notificationId: id },
+          })
+        }
+        dispatch({ type: 'MARK_NOTIFICATION_READ', id })
+      },
 
       finishGoal: () => {
         if (!currentGoal) return

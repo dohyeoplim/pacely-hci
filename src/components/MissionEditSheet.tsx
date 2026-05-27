@@ -64,6 +64,7 @@ export function MissionEditSheet({
     <Sheet
       open={open}
       onClose={onClose}
+      analyticsName={mode === 'add' ? 'mission_add' : 'mission_edit'}
       title={mode === 'add' ? '작업 추가하기' : '작업 수정하기'}
       footer={
         <div className="mission-edit__footer">

@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { BackButton } from '../components/BackButton'
 import { Button } from '../components/Button'
 import { SURVEY_URL } from '../lib/experiment'
+import {
+  ensureNotionEventSchema,
+  ensureNotionSchema,
+  pingMetrics,
+} from '../lib/metrics/client'
 import { usePacely } from '../lib/store/store'
 import type { ExperimentGroup, PersonaOrder } from '../types'
 
@@ -28,11 +33,73 @@ export function ResearchPage() {
   const { state, setExperiment } = usePacely()
   const e = state.experiment
   const [pid, setPid] = useState(e.participantId)
+  const [notionStatus, setNotionStatus] = useState<{
+    kind: 'idle' | 'busy' | 'ok' | 'err'
+    text: string
+  }>({ kind: 'idle', text: '' })
 
   const commitId = () => {
     const formatted = formatParticipantId(pid)
     setPid(formatted)
     setExperiment({ participantId: formatted })
+  }
+
+  const onPing = async () => {
+    setNotionStatus({ kind: 'busy', text: 'Notion 환경 확인 중…' })
+    const r = await pingMetrics()
+    if (!r.ok) {
+      const err = 'error' in r.data ? r.data.error : `HTTP ${r.status}`
+      setNotionStatus({ kind: 'err', text: `연결 실패: ${err}` })
+      return
+    }
+    const d = r.data as {
+      hasToken: boolean
+      hasDb: boolean
+      hasEventDb: boolean
+    }
+    if (!d.hasToken || !d.hasDb) {
+      setNotionStatus({
+        kind: 'err',
+        text: 'NOTION_PAT 또는 NOTION_DB_ID가 서버에 설정되어 있지 않아요.',
+      })
+      return
+    }
+    setNotionStatus({
+      kind: 'ok',
+      text: `Notion 환경 OK · 토큰/세션 DB 인식됨${
+        d.hasEventDb ? ' · 이벤트 DB 인식됨' : ' · 이벤트 DB 미설정'
+      }`,
+    })
+  }
+
+  const onSync = async () => {
+    setNotionStatus({ kind: 'busy', text: '세션 DB 스키마 동기화 중…' })
+    const r = await ensureNotionSchema()
+    if (!r.ok) {
+      const err = 'error' in r.data ? r.data.error : `HTTP ${r.status}`
+      setNotionStatus({ kind: 'err', text: `동기화 실패: ${err}` })
+      return
+    }
+    const props = (r.data as { properties: string[] }).properties
+    setNotionStatus({
+      kind: 'ok',
+      text: `세션 DB ${props.length}개 컬럼 동기화 완료.`,
+    })
+  }
+
+  const onSyncEvents = async () => {
+    setNotionStatus({ kind: 'busy', text: '이벤트 DB 스키마 동기화 중…' })
+    const r = await ensureNotionEventSchema()
+    if (!r.ok) {
+      const err = 'error' in r.data ? r.data.error : `HTTP ${r.status}`
+      setNotionStatus({ kind: 'err', text: `이벤트 동기화 실패: ${err}` })
+      return
+    }
+    const props = (r.data as { properties: string[] }).properties
+    setNotionStatus({
+      kind: 'ok',
+      text: `이벤트 DB ${props.length}개 컬럼 동기화 완료. 이제 사용 흐름이 실시간 기록돼요.`,
+    })
   }
 
   return (
@@ -118,6 +185,42 @@ export function ResearchPage() {
             onChange={(ev) => setExperiment({ rewardEnabled: ev.target.checked })}
           />
         </label>
+      </section>
+
+      <section className="research-section">
+        <div className="profile-label t-caption">Notion 자동 기록</div>
+        <p className="t-micro">
+          계획 1건당 세션 DB에 요약 1행, 사용 흐름은 이벤트 DB에 실시간 기록돼요.
+          새 DB라면 먼저 두 스키마 모두 한 번 동기화해주세요.
+        </p>
+        <div className="research-notion">
+          <div className="profile-actions">
+            <Button block variant="secondary" onClick={onPing}>
+              연결 확인
+            </Button>
+            <Button block onClick={onSync}>
+              세션 DB 동기화
+            </Button>
+          </div>
+          <div className="profile-actions">
+            <Button block variant="ghost" onClick={onSyncEvents}>
+              이벤트 DB 동기화
+            </Button>
+          </div>
+          <div
+            className={`research-notion__status ${
+              notionStatus.kind === 'ok'
+                ? 'research-notion__status--ok'
+                : notionStatus.kind === 'err'
+                  ? 'research-notion__status--err'
+                  : ''
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            {notionStatus.text}
+          </div>
+        </div>
       </section>
 
       <section className="research-section">

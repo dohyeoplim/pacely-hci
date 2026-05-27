@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { BackButton } from '../components/BackButton'
+import { BurdenSurveySheet } from '../components/BurdenSurveySheet'
 import { Button } from '../components/Button'
 import { Calendar, rangeDays, rangeIsValid } from '../components/Calendar'
 import { ChatBubble } from '../components/ChatBubble'
@@ -13,7 +14,13 @@ import { PlanCard } from '../components/PlanCard'
 import { PlanDailyStrip } from '../components/PlanDailyStrip'
 import { PlanLoading } from '../components/PlanLoading'
 import { PlanReviseSheet } from '../components/PlanReviseSheet'
+import { PreBurdenPrompt } from '../components/PreBurdenPrompt'
 import { createMockAgents, getAgents } from '../lib/agents'
+import { buildMetricsPayload } from '../lib/metrics/builder'
+import { logMetrics } from '../lib/metrics/client'
+import { useMetricCollector } from '../lib/metrics/collector'
+import { eventLogger, logEvent } from '../lib/metrics/eventLogger'
+import type { SurveyResponse } from '../lib/metrics/types'
 import { generateMissions } from '../lib/store/missions'
 import { usePacely } from '../lib/store/store'
 import { addDays, todayISO, uid } from '../lib/util'
@@ -99,8 +106,29 @@ export function PlanningPage() {
     null,
   )
 
+  const [preBurden, setPreBurden] = useState<number | null>(null)
+  const [surveyOpen, setSurveyOpen] = useState(false)
+
+  const metrics = useMetricCollector()
+
   const bodyRef = useRef<HTMLDivElement>(null)
   const stepIndex = ALL_STEPS.indexOf(step)
+
+  // Per-step dwell-time tracking. enterStep auto-closes the previously
+  // open bucket, so steady-state re-renders are no-ops.
+  useEffect(() => {
+    metrics.enterStep(step)
+  }, [step, metrics])
+
+  // Tell the event logger we're inside this planning session so emitted
+  // rows can be joined back to the session-summary row at analysis time.
+  useEffect(() => {
+    const id = metrics.sessionId()
+    eventLogger.setContext({ planSessionId: id })
+    return () => {
+      eventLogger.setContext({ planSessionId: '' })
+    }
+  }, [metrics])
 
   useEffect(() => {
     if (step !== 'period') return
@@ -138,6 +166,7 @@ export function PlanningPage() {
       setTimeout(() => reject(new Error('TIMEOUT')), TIMEOUT_MS)
     })
 
+    metrics.markPlanGenStart()
     void (async () => {
       try {
         const p = await Promise.race([
@@ -158,6 +187,7 @@ export function PlanningPage() {
           ? await agents.planner.generateMissions(planned, category)
           : generateMissions(planned, category)
         if (cancelled) return
+        metrics.markPlanGenEnd()
 
         setPlanStatus('completing')
         setTimeout(() => {
@@ -171,6 +201,7 @@ export function PlanningPage() {
       } catch (err) {
         if (cancelled) return
         console.warn('[PlanningPage] LLM planner failed', err)
+        metrics.markPlanGenEnd()
         setPlanStatus('timeout')
       }
     })()
@@ -178,9 +209,12 @@ export function PlanningPage() {
     return () => {
       cancelled = true
     }
-  }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
+  }, [step, plan, category, goalText, range, hours, chosenPersona, subjects, metrics])
 
-  const onRetryPlan = () => setPlanStatus('idle')
+  const onRetryPlan = () => {
+    metrics.incRetry()
+    setPlanStatus('idle')
+  }
 
   const goToNext = () => {
     const i = ALL_STEPS.indexOf(step)
@@ -202,6 +236,7 @@ export function PlanningPage() {
     if (!text) return
     setGoalText(text)
     setGoalParsing(true)
+    metrics.markParseStart()
     try {
       const agent = getAgents().planner
       const result = agent.parseGoal
@@ -210,6 +245,7 @@ export function PlanningPage() {
             goalText: text,
             persona: chosenPersona,
           })
+      metrics.markParseEnd()
       setCategory(result.category)
       setShortTitle(result.shortTitle)
       setGreeting(result.greeting)
@@ -226,6 +262,7 @@ export function PlanningPage() {
       }
     } catch (err) {
       console.warn('[PlanningPage] parseGoal failed', err)
+      metrics.markParseEnd()
       setCategory('custom')
       setShortTitle(text.slice(0, 16))
       setGreeting(
@@ -246,13 +283,57 @@ export function PlanningPage() {
 
   const onStartPlan = () => {
     if (!plan || !category) return
+    // Open the post-survey first; commitGoal runs from submit OR skip so
+    // objective metrics never get lost even if the participant bails.
+    setSurveyOpen(true)
+  }
+
+  const commitGoal = (survey: Omit<SurveyResponse, 'preBurden'> | null) => {
+    if (!plan || !category) return
     setPersona(chosenPersona)
-    createGoal({
+    const finalPlan: Plan = { ...plan, persona: chosenPersona }
+    const goal = createGoal({
       title,
       category,
-      plan: { ...plan, persona: chosenPersona },
+      plan: finalPlan,
       missions: draftMissions,
     })
+
+    const fullSurvey: SurveyResponse = {
+      preBurden,
+      postBurden: survey?.postBurden ?? null,
+      confidence: survey?.confidence ?? null,
+      planClarity: survey?.planClarity ?? null,
+      immediateActionability: survey?.immediateActionability ?? null,
+      nasaTlxMental: survey?.nasaTlxMental ?? null,
+      nasaTlxTemporal: survey?.nasaTlxTemporal ?? null,
+      nasaTlxEffort: survey?.nasaTlxEffort ?? null,
+      nasaTlxFrustration: survey?.nasaTlxFrustration ?? null,
+    }
+
+    const payload = buildMetricsPayload({
+      snapshot: metrics.snapshot(),
+      plan: finalPlan,
+      missions: draftMissions,
+      goalText: goalText || title,
+      shortTitle,
+      goalCategory: category,
+      persona: chosenPersona,
+      dailyHours: hours,
+      planId: goal.plan.id,
+      experiment: state.experiment,
+      survey: fullSurvey,
+      preSurveyCompleted: preBurden != null,
+      postSurveyCompleted: survey != null,
+    })
+
+    void logMetrics(payload).then((res) => {
+      if (!res.ok) {
+        console.warn('[metrics] Notion log failed', res.status, res.data)
+      }
+    })
+
+    setSurveyOpen(false)
     navigate('/day-start')
   }
 
@@ -261,6 +342,18 @@ export function PlanningPage() {
     subjects: string[]
     persona: Persona
   }) => {
+    metrics.incRevision()
+    logEvent({
+      type: 'plan_revised',
+      payload: {
+        hoursFrom: hours,
+        hoursTo: next.hours,
+        subjectsFrom: subjects,
+        subjectsTo: next.subjects,
+        personaFrom: chosenPersona,
+        personaTo: next.persona,
+      },
+    })
     setHours(next.hours)
     setSubjects(next.subjects)
     setChosenPersona(next.persona)
@@ -274,6 +367,8 @@ export function PlanningPage() {
     estimatedMinutes: number
     date: string
   }) => {
+    if (input.id) metrics.incMissionEdit()
+    else metrics.incMissionAdd()
     setDraftMissions((prev) => {
       if (input.id) {
         return prev.map((m) =>
@@ -300,6 +395,7 @@ export function PlanningPage() {
     })
   }
   const handleDeleteMission = (id: string) => {
+    metrics.incMissionDelete()
     setDraftMissions((prev) => prev.filter((m) => m.id !== id))
   }
 
@@ -389,6 +485,7 @@ export function PlanningPage() {
                     ))}
                   </div>
                 )}
+                <PreBurdenPrompt value={preBurden} onChange={setPreBurden} />
               </>
             )}
 
@@ -533,6 +630,8 @@ export function PlanningPage() {
                   block
                   variant="ghost"
                   onClick={() => {
+                    metrics.incPlanRegeneration()
+                    logEvent({ type: 'plan_regenerated' })
                     setPlan(null)
                     setDraftMissions([])
                     setStep('hours')
@@ -572,6 +671,22 @@ export function PlanningPage() {
           onClose={() => setMissionSheet(null)}
         />
       )}
+
+      <BurdenSurveySheet
+        open={surveyOpen}
+        preBurden={preBurden}
+        onSubmit={(survey) => {
+          logEvent({
+            type: 'survey_submitted',
+            payload: { preBurden, ...survey },
+          })
+          commitGoal(survey)
+        }}
+        onSkip={() => {
+          logEvent({ type: 'survey_skipped', payload: { preBurden } })
+          commitGoal(null)
+        }}
+      />
     </div>
   )
 }

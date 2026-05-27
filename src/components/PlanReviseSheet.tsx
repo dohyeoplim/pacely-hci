@@ -41,6 +41,7 @@ export function PlanReviseSheet({
     <Sheet
       open={open}
       onClose={onClose}
+      analyticsName="plan_revise"
       title="같이 다시 잡아볼까요?"
       footer={
         <div className="plan-revise__footer">
