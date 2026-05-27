@@ -1,9 +1,3 @@
-/* Co-Reward (spec §F4) — Earn / Grow / Compete.
-
-   Earn:    catalog of partner rewards generated on each goal completion.
-   Grow:    Pacely avatar that levels up per finished goal + accumulated traits.
-   Compete: start / track a battle against a randomly assigned opponent. */
-
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 
@@ -23,14 +17,10 @@ export function RewardPage() {
     usePacely()
   const [tab, setTab] = useState<Tab>('earn')
 
-  /* The researcher disables the reward surface for the GC group. If someone
-     deep-links to /reward, bounce them back to home so the test condition
-     stays clean. */
   if (!state.experiment.rewardEnabled) {
     return <Navigate to="/home" replace />
   }
 
-  // Re-tick opponent progress whenever the user opens the Compete tab.
   useEffect(() => {
     if (tab === 'compete') refreshBattles()
   }, [tab, refreshBattles])
@@ -110,8 +100,6 @@ function TabBtn({
   )
 }
 
-/* --- Earn tab ------------------------------------------------------------*/
-
 function EarnTab({
   rewards,
   onRedeem,
@@ -172,9 +160,6 @@ function RewardItem({
   )
 }
 
-/* --- Grow tab ------------------------------------------------------------*/
-
-/* Pacely levels up one tier per completed goal, capped at Lv. 5. */
 const MAX_AVATAR_LEVEL = 5
 
 function GrowTab({
@@ -223,8 +208,6 @@ function GrowTab({
     </div>
   )
 }
-
-/* --- Compete tab ---------------------------------------------------------*/
 
 function CompeteTab({
   battles,

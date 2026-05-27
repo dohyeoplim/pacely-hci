@@ -1,8 +1,3 @@
-/* Mock Dialogue — persona-conditioned natural-language responses.
-
-   Intent is matched by keyword; tone is shaped by persona. The real Dialogue
-   agent would condition a single prompt on persona + conversation context. */
-
 import type { Persona } from '../../../types'
 import { delay } from '../reasoning'
 import type { DialogueAgent, DialogueInput } from '../types'
@@ -24,7 +19,6 @@ function detect(utterance: string): Intent {
   return 'default'
 }
 
-/** Tone-matched response pools. [gentle, strict] */
 const RESPONSES: Record<Intent, Record<Persona, string[]>> = {
   greeting: {
     gentle: ['반가워요! 오늘 어떤 목표를 함께 만들어볼까요?'],

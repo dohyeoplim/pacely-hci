@@ -1,6 +1,3 @@
-/* Record — recent notifications + mission log. Stub view, accessible from
-   the home tab bar. */
-
 import { Navigate } from 'react-router-dom'
 
 import { usePacely } from '../lib/store/store'

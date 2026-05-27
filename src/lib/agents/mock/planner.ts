@@ -1,8 +1,3 @@
-/* Mock Planner — decomposes a goal into milestones + daily allocation.
-
-   Deterministic, offline. The real Planner would build a decomposition prompt
-   from PlannerInput, call the ReasoningEngine, and parse a structured Plan. */
-
 import type {
   DailyAllocation,
   GoalCategory,
@@ -20,7 +15,6 @@ import type {
 } from '../types'
 
 interface CategoryTemplate {
-  /** three phases: ramp-up → core → wrap-up */
   phases: { title: string; cadence: (h: number) => string }[]
   daySummary: (phase: number, h: number) => string
 }
@@ -75,7 +69,6 @@ const TEMPLATES: Record<GoalCategory, CategoryTemplate> = {
   },
 }
 
-/** Which phase (0,1,2) a given elapsed-day index falls into. */
 function phaseOf(dayIndex: number, totalDays: number): number {
   const ratio = dayIndex / Math.max(totalDays, 1)
   if (ratio < 0.4) return 0
@@ -155,8 +148,6 @@ function pickFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-/** Tiny keyword classifier used when the caller hasn't pre-selected a
-   category. Covers the obvious Korean goal-statement patterns. */
 function inferCategory(text: string): GoalCategory {
   const t = text.toLowerCase()
   if (/(시험|기말|중간|자격증|토익|토플|학점|공부)/.test(t)) return 'exam'
@@ -190,7 +181,6 @@ export class MockPlanner implements PlannerAgent {
     const weeks = Math.max(Math.ceil(totalDays / 7), 1)
     const tpl = TEMPLATES[input.category]
 
-    // Three milestones, each anchored to the first week of its phase band.
     const milestones: Milestone[] = tpl.phases.map((phase, i) => ({
       id: uid('ms'),
       title: phase.title,

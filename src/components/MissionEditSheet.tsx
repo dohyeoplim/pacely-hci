@@ -1,8 +1,3 @@
-/* Add / edit a mission via a bottom sheet.
-
-   Fields: title, duration (15-min snapped), date (chip row).
-   Edit mode shows a 삭제 button alongside 저장. */
-
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from './Button'
@@ -13,10 +8,7 @@ import { fromISO } from '../lib/util'
 interface MissionEditSheetProps {
   open: boolean
   mode: 'add' | 'edit'
-  /** Plan that owns the missions — provides date chip options. Works for
-      both live goals (goal.plan) and draft plans on the planning screen. */
   plan: Plan
-  /** prefilled date (for "add") OR the mission being edited */
   defaultDate?: string
   mission?: MissionTask
   onSave: (input: {
@@ -50,7 +42,6 @@ export function MissionEditSheet({
     mission?.date ?? defaultDate ?? plan.dailyAllocation[0]?.date ?? '',
   )
 
-  // Reset state whenever the sheet opens with new inputs.
   useEffect(() => {
     if (!open) return
     setTitle(mission?.title ?? '')

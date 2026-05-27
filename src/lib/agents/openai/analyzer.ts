@@ -1,8 +1,3 @@
-/* Real Analyzer — extracts behavioural insights from the user's event log.
-
-   We pre-aggregate the events into a compact summary before sending so the
-   prompt stays small even after weeks of usage. */
-
 import type { UserEvent } from '../../../types'
 import { uid } from '../../util'
 import type { AnalyzerAgent, Insight } from '../types'

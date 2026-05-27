@@ -1,9 +1,3 @@
-/* Two small ribbons shown on the home page when the user can opt into
-   richer native features: "Add to Home Screen" and "Allow notifications".
-
-   Both ribbons remember their dismissal in localStorage so users only see
-   them once per choice. */
-
 import { useEffect, useState } from 'react'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -18,8 +12,7 @@ function rememberDismissal(key: string): void {
   try {
     localStorage.setItem(key, '1')
   } catch {
-    /* Quota exceeded or storage disabled — the ribbon will reappear next
-       session, which is harmless. */
+    /* storage full / unavailable — non-fatal */
   }
 }
 

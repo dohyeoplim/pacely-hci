@@ -1,9 +1,3 @@
-/* The "grow" avatar for the Co-Reward Grow tab.
-
-   A round Pacely mascot that picks up small accessories per level — eyes,
-   sparkles, a band — and recolors based on the user's most-recent goal
-   category. Pure SVG so it scales cleanly. */
-
 import { useId } from 'react'
 
 import type { GoalCategory } from '../types'
@@ -52,7 +46,6 @@ export function PacelyCharacter({
         </filter>
       </defs>
 
-      {/* Halo at level 3+ */}
       {level >= 3 && (
         <circle
           cx="60"
@@ -65,7 +58,6 @@ export function PacelyCharacter({
         />
       )}
 
-      {/* Body */}
       <circle
         cx="60"
         cy="60"
@@ -74,14 +66,12 @@ export function PacelyCharacter({
         filter={`url(#${id}-glow)`}
       />
 
-      {/* Pacely symbol — source viewBox is 220×220, scaled to ~50px and
-          centered inside the 120×120 mascot box so it reads at a glance. */}
+      {/* Pacely symbol — source viewBox is 220×220; scale 0.227 fits a ~50px mark inside the 120 mascot. */}
       <g transform="translate(35, 35) scale(0.227)" fill="#fff">
         <path d="M11 22C11 34.1503 20.8497 44 33 44H55H99H121C145.301 44 165 63.6995 165 88C165 112.301 145.301 132 121 132H99C86.8497 132 77 141.85 77 154C77 166.15 86.8497 176 99 176H121C169.601 176 209 136.601 209 88C209 39.3989 169.601 0 121 0H99H55H33C20.8497 0 11 9.84974 11 22Z" />
         <path d="M55 176V132C55 119.85 64.8497 110 77 110H121C133.15 110 143 100.15 143 88C143 75.8497 133.15 66 121 66H55C30.6995 66 11 85.6995 11 110V132V176V198C11 210.15 20.8497 220 33 220C45.1503 220 55 210.15 55 198V176Z" />
       </g>
 
-      {/* Eyes — appear from level 2 */}
       {level >= 2 && (
         <>
           <circle cx="48" cy="50" r="1.6" fill={c2} />
@@ -89,7 +79,6 @@ export function PacelyCharacter({
         </>
       )}
 
-      {/* Sparkles — appear from level 4 */}
       {level >= 4 && (
         <>
           <Sparkle x={20} y={22} color={c1} />
@@ -98,7 +87,6 @@ export function PacelyCharacter({
         </>
       )}
 
-      {/* Crown at level 5 */}
       {level >= 5 && (
         <path
           d="M44 24 L52 14 L60 22 L68 14 L76 24 L72 32 H48 Z"

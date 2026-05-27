@@ -1,6 +1,3 @@
-/* Profile — change persona, edit display name, switch between active goals,
-   view history, finish or reset. */
-
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 

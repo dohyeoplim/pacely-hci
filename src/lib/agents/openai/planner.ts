@@ -1,8 +1,3 @@
-/* Real Planner — uses OpenAI gpt-4o-mini to produce a structured Plan
-   plus matching per-day sub-tasks. Output is validated against the Plan
-   shape before being returned to the UI; on any failure we surface a
-   descriptive error so the caller can fall back to the mock. */
-
 import type {
   DailyAllocation,
   GoalCategory,
@@ -256,8 +251,7 @@ export class OpenAIPlanner implements PlannerAgent {
     plan: Plan,
     category: GoalCategory,
   ): Promise<MissionTask[]> {
-    /* For longer plans, split into weekly batches and run in parallel so
-       the wall clock stays inside the Edge 25s budget. */
+    // Weekly batches in parallel to stay within the Edge 25s budget.
     const days = plan.dailyAllocation
     if (days.length <= 7) {
       return this.requestMissions(plan, days, category)
@@ -296,7 +290,7 @@ export class OpenAIPlanner implements PlannerAgent {
     ]
     const raw = await callLLM(messages, {
       responseFormat: 'json',
-      /* ~3 missions per day × max 7 days × ~30 tokens = ~700 tokens */
+      // ~3 missions per day × max 7 days × ~30 tokens = ~700 tokens
       maxTokens: 1200,
       temperature: 0.6,
     })

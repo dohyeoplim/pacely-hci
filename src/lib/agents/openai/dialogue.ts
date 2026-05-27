@@ -1,6 +1,3 @@
-/* Real Dialogue agent — short persona-conditioned responses for the chat
-   bubbles in planning, day-start, and the notification toast. */
-
 import type { Persona } from '../../../types'
 import type { DialogueAgent, DialogueInput } from '../types'
 import { callLLM, type ChatMessage } from './client'

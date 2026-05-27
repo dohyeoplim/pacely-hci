@@ -1,9 +1,3 @@
-/* Mock Adjuster — context-aware notifications + plan re-shaping (spec §F2.2).
-
-   Notifications branch on situation/progress/emotion, not just time. Message
-   tone is persona-conditioned. The real Adjuster would feed the same context
-   into the ReasoningEngine. */
-
 import type {
   Goal,
   PacelyNotification,
@@ -15,7 +9,6 @@ import { dDay, uid } from '../../util'
 import { delay } from '../reasoning'
 import type { AdjusterAgent, AdjusterContext, Insight } from '../types'
 
-/** Message pools per trigger × persona, lifted from the spec's F2.2 table. */
 const MESSAGES: Record<TriggerCategory, Record<Persona, string[]>> = {
   entry: {
     gentle: [
@@ -99,7 +92,6 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-/** Decide which trigger fires given the current goal state + recent events. */
 function selectTrigger(ctx: AdjusterContext): TriggerCategory {
   const { goal, recentEvents } = ctx
   const { progress } = goal
@@ -144,8 +136,6 @@ export class MockAdjuster implements AdjusterAgent {
 
   async replan(goal: Goal, insight: Insight): Promise<Plan> {
     await delay(360 + Math.random() * 360)
-    // Mock re-shaping: when the Analyzer flags afternoon slumps, re-tag the
-    // remaining days as morning-focused. Structure stays; summaries shift.
     if (insight.kind !== 'afternoon_focus_drop') return goal.plan
     return {
       ...goal.plan,

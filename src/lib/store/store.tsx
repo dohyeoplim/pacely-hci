@@ -1,6 +1,3 @@
-/* Pacely store — single React context, useReducer-backed, persisted to
-   localStorage, with an offline sync queue for mission checks (spec §6). */
-
 import {
   createContext,
   useCallback,
@@ -35,8 +32,6 @@ import { emptyProgress, recomputeProgress } from './progress'
 import { initialAvatar, levelUpAvatar, rewardsForGoal } from './rewards'
 import { createBattle, resolveBattle, tickBattle } from './battle'
 
-/* --- State ---------------------------------------------------------------*/
-
 export interface PacelyState {
   user: User
   goals: Goal[]
@@ -68,8 +63,6 @@ const initialState: PacelyState = {
   battles: [],
   experiment: DEFAULT_EXPERIMENT,
 }
-
-/* --- Actions -------------------------------------------------------------*/
 
 type Action =
   | { type: 'HYDRATE'; state: PacelyState }
@@ -117,7 +110,6 @@ function reducer(state: PacelyState, action: Action): PacelyState {
       return { ...state, user: { ...state.user, name: action.name } }
 
     case 'CREATE_GOAL': {
-      // Keep existing goals active — user can switch between them.
       return {
         ...state,
         goals: [
@@ -144,7 +136,6 @@ function reducer(state: PacelyState, action: Action): PacelyState {
           ? g
           : { ...g, status: 'abandoned' as const },
       )
-      // If we abandoned the current goal, pick another active one.
       let currentGoalId = state.currentGoalId
       if (currentGoalId === action.goalId) {
         const next = goals.find((g) => g.status === 'active')
@@ -215,7 +206,6 @@ function reducer(state: PacelyState, action: Action): PacelyState {
       const goals = state.goals.map((g) =>
         g.id !== action.goalId ? g : { ...g, status: 'finished' as const },
       )
-      // Auto-generate Co-Reward artifacts on completion.
       const newRewards = finishedGoal ? rewardsForGoal(finishedGoal) : []
       const nextAvatar = finishedGoal
         ? levelUpAvatar(state.avatar, finishedGoal)
@@ -290,62 +280,39 @@ function reducer(state: PacelyState, action: Action): PacelyState {
   }
 }
 
-/* --- Context -------------------------------------------------------------*/
-
 interface PacelyContextValue {
   state: PacelyState
   currentGoal: Goal | null
-  /** Update the user's persona preference. */
   setPersona: (persona: Persona) => void
-  /** Persist the user's display name. */
   setName: (name: string) => void
-  /** Create a goal from a finalized Plan + metadata. If `missions` is
-      supplied (e.g. user-edited draft missions on the planning step), it is
-      used verbatim instead of regenerating from templates. */
   createGoal: (input: {
     title: string
     category: GoalCategory
     plan: Plan
     missions?: MissionTask[]
   }) => Goal
-  /** Install a fully-built goal (used by the demo seed). */
   installGoal: (goal: Goal) => void
-  /** Rename the current goal. */
   editGoalTitle: (title: string) => void
-  /** Switch the active goal to a different one. */
   switchGoal: (goalId: string) => void
-  /** Abandon a goal (won't be auto-resurfaced). */
   abandonGoal: (goalId: string) => void
-  /** Toggle a mission's completed flag. Records an event + may trigger notifications. */
   toggleMission: (missionId: string) => Promise<void>
-  /** Add a custom mission to the current goal. */
   addMission: (input: {
     title: string
     estimatedMinutes: number
     date: string
   }) => void
-  /** Patch an existing mission on the current goal. */
   editMission: (
     id: string,
     patch: { title?: string; estimatedMinutes?: number; date?: string },
   ) => void
-  /** Delete a mission on the current goal. */
   deleteMission: (id: string) => void
-  /** Mark a notification as read. */
   markNotificationRead: (id: string) => void
-  /** Mark the current goal as finished. */
   finishGoal: () => void
-  /** Mark a reward as redeemed. */
   redeemReward: (id: string) => void
-  /** Start a new compete battle against a randomly assigned opponent. */
   startBattle: (stake: string) => Battle | null
-  /** Re-tick the opponent's progress for an active battle (idempotent). */
   refreshBattles: () => void
-  /** Wipe everything (debug / "start over"). */
   reset: () => void
-  /** Record an arbitrary event (e.g. `app_open`). */
   recordEvent: (event: Omit<UserEvent, 'at'>) => Promise<void>
-  /** Patch the HCI experiment config (participant ID, group, conditions). */
   setExperiment: (patch: Partial<Experiment>) => void
 }
 
@@ -354,7 +321,6 @@ const PacelyContext = createContext<PacelyContextValue | null>(null)
 export function PacelyProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState, (s) => {
     const persisted = typeof window !== 'undefined' ? loadState() : null
-    // Backfill in case a previously-persisted state predates new slices.
     return persisted
       ? {
           ...s,
@@ -367,12 +333,10 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       : s
   })
 
-  // Persist on every change.
   useEffect(() => {
     saveState(state)
   }, [state])
 
-  // Flush the offline queue when the browser regains connectivity.
   useEffect(() => {
     const handler = () => dispatch({ type: 'FLUSH_QUEUE' })
     window.addEventListener('online', handler)
@@ -387,15 +351,12 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
     [state.goals, state.currentGoalId],
   )
 
-  /* The orchestrator is async; we read currentGoal + events via a ref so
-     pending calls always see the latest state instead of a stale closure
-     captured when the callback was first created. */
+  // Live ref so async orchestrator calls never see a stale closure of currentGoal/events.
   const latest = useRef({ currentGoal, events: state.events })
   useEffect(() => {
     latest.current = { currentGoal, events: state.events }
   }, [currentGoal, state.events])
 
-  // The orchestrator runs out-of-band so the reducer stays pure.
   const orchestratorBusy = useRef(false)
 
   const runOrchestrator = useCallback(
@@ -430,8 +391,6 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       const event: UserEvent = { ...partial, at: Date.now() }
       const offline = typeof navigator !== 'undefined' && !navigator.onLine
       dispatch({ type: 'ADD_EVENT', event, offline })
-      /* Read live state via ref so a user that switches goals mid-async
-         doesn't trip the orchestrator with the previous goal. */
       await runOrchestrator(event, latest.current.currentGoal, latest.current.events)
     },
     [runOrchestrator],
@@ -489,7 +448,6 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
           missionId,
         })
         if (before && !before.completed) {
-          // Subtle haptic — supported on Android / some PWAs; ignored elsewhere.
           if (
             typeof navigator !== 'undefined' &&
             typeof navigator.vibrate === 'function'

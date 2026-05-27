@@ -1,7 +1,3 @@
-/* Horizontal "이번 주 일정" strip — shown beneath the plan card in the
-   planning preview step. Each day card is tappable so the user can drill
-   into and edit that day's sub-tasks before committing to the plan. */
-
 import type { MissionTask, Plan } from '../types'
 import { fromISO } from '../lib/util'
 
@@ -9,11 +5,8 @@ const WEEKDAYS_SHORT = ['일', '월', '화', '수', '목', '금', '토']
 
 interface PlanDailyStripProps {
   plan: Plan
-  /** how many days to show, default 7 */
   windowSize?: number
-  /** Optional draft missions used to surface a per-day count badge. */
   missions?: MissionTask[]
-  /** Tap a day cell to open its detail / edit view. */
   onPickDay?: (date: string) => void
 }
 

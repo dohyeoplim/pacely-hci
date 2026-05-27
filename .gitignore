@@ -18,6 +18,9 @@ dev-dist
 .env.*
 !.env.example
 
+# TypeScript incremental build artifacts
+*.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

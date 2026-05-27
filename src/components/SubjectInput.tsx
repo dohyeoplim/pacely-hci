@@ -1,9 +1,3 @@
-/* Subject / phase chip input used in the Co-Planning subjects step.
-
-   Lets the user add up to 6 labels that the plan generator then rotates into
-   daily missions. Includes a small "추천" row so users don't start from a
-   blank field. */
-
 import { useState } from 'react'
 
 interface SubjectInputProps {

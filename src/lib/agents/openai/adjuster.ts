@@ -1,9 +1,3 @@
-/* Real Adjuster — LLM-driven notification text + plan re-shaping.
-
-   Notification selection still uses the deterministic trigger picker so
-   we control which kind of message fires (entry / milestone / etc).
-   The text inside the message is what the LLM writes. */
-
 import type {
   DailyAllocation,
   Goal,

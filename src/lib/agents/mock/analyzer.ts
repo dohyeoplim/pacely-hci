@@ -1,14 +1,8 @@
-/* Mock Analyzer — extracts usage / procrastination patterns from the event log.
-
-   Heuristic and offline. The real Analyzer would summarize the long-term
-   behavior log through the ReasoningEngine. */
-
 import type { UserEvent } from '../../../types'
 import { uid } from '../../util'
 import { delay } from '../reasoning'
 import type { AnalyzerAgent, Insight } from '../types'
 
-/** Hour-of-day bucket for an event. */
 function hour(e: UserEvent): number {
   return new Date(e.at).getHours()
 }
@@ -21,7 +15,6 @@ export class MockAnalyzer implements AnalyzerAgent {
     const missed = events.filter((e) => e.type === 'mission_missed')
     const completed = events.filter((e) => e.type === 'mission_completed')
 
-    // Pattern 1: three+ misses → afternoon focus drop (drives Adjuster.replan).
     if (missed.length >= 3) {
       const afternoonMisses = missed.filter((e) => {
         const h = hour(e)
@@ -44,7 +37,6 @@ export class MockAnalyzer implements AnalyzerAgent {
       }
     }
 
-    // Pattern 2: a strong completion streak → momentum worth reinforcing.
     if (completed.length >= 5 && missed.length === 0) {
       insights.push({
         id: uid('insight'),
@@ -54,7 +46,6 @@ export class MockAnalyzer implements AnalyzerAgent {
       })
     }
 
-    // Pattern 3: opens app but rarely starts the day.
     const opens = events.filter((e) => e.type === 'app_open').length
     const starts = events.filter((e) => e.type === 'day_started').length
     if (opens >= 4 && starts / Math.max(opens, 1) < 0.4) {

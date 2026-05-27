@@ -1,9 +1,3 @@
-/* HCI study control panel.
-
-   Researchers enter the participant ID and group conditions here so the
-   rest of the app can branch behaviour (LAB1 persona order, LAB2 condition,
-   GC reward-off) and so logs can be tied to a participant on export. */
-
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 

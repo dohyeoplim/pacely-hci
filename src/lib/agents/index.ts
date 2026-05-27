@@ -1,13 +1,3 @@
-/* Agent system entry point.
-
-   Consumers call `getAgents()` and depend only on the `Agents` interface.
-   The active implementation is picked once at boot based on the
-   `VITE_USE_LLM` env flag:
-
-     VITE_USE_LLM=true   → real OpenAI-backed bundle (calls /api/llm)
-     anything else       → deterministic mock bundle (good for demos / GA group)
-*/
-
 import { MockAdjuster } from './mock/adjuster'
 import { MockAnalyzer } from './mock/analyzer'
 import { MockDialogue } from './mock/dialogue'
@@ -38,8 +28,6 @@ export function createOpenAIAgents(): Agents {
   const dialogue = new OpenAIDialogue()
   const adjuster = new OpenAIAdjuster()
   const analyzer = new OpenAIAnalyzer()
-  /* The orchestrator routing logic stays identical — only the agents
-     it composes are swapped out. */
   const orchestrator = new MockOrchestrator({
     planner,
     dialogue,
@@ -50,7 +38,6 @@ export function createOpenAIAgents(): Agents {
 }
 
 function shouldUseLLM(): boolean {
-  /* Vite inlines import.meta.env at build time. The flag is a string. */
   return import.meta.env.VITE_USE_LLM === 'true'
 }
 

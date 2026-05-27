@@ -1,6 +1,3 @@
-/* Thin client wrapper that posts to the Vercel /api/llm proxy. The OpenAI
-   API key never touches the browser — the proxy attaches it server-side. */
-
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -38,9 +35,6 @@ export async function callLLM(
   return data.content ?? ''
 }
 
-/** Strict JSON helper — extracts the JSON object from a model response that
-   may include stray whitespace or markdown fences when JSON mode isn't
-   strict. */
 export function parseJsonResponse<T>(raw: string): T {
   const trimmed = raw.trim().replace(/^```(?:json)?\s*|\s*```$/g, '')
   return JSON.parse(trimmed) as T

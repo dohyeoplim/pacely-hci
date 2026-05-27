@@ -1,8 +1,3 @@
-/* Inline month calendar with start-end range selection.
-
-   Designed for the Co-Planning F1 step 2 flow. Pure-React, no calendar lib —
-   the spec only needs month-view + range selection. */
-
 import { useMemo, useState } from 'react'
 
 import { toISO, fromISO } from '../lib/util'
@@ -10,7 +5,6 @@ import { toISO, fromISO } from '../lib/util'
 interface CalendarProps {
   value?: { start?: string; end?: string }
   onChange: (range: { start: string; end: string }) => void
-  /** Inclusive lower bound — picks below this are disabled. */
   minDate?: string
 }
 
@@ -20,10 +14,9 @@ function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1)
 }
 
-/** Returns an array of 42 Date cells (6 weeks) starting from Monday. */
 function buildGrid(monthAnchor: Date): Date[] {
   const first = startOfMonth(monthAnchor)
-  // JS getDay: 0=Sun..6=Sat. We start week on Monday.
+  // JS getDay is Sun-based; convert so the week starts on Monday.
   const offset = (first.getDay() + 6) % 7
   const gridStart = new Date(first)
   gridStart.setDate(first.getDate() - offset)
@@ -50,8 +43,7 @@ export function Calendar({ value, onChange, minDate }: CalendarProps) {
   const handlePick = (iso: string) => {
     if (minDate && iso < minDate) return
     if (!draftStart || (draftStart && draftEnd)) {
-      /* Fresh start — also commit a same-day range immediately so a single
-         tap can yield a 1-day plan. The second tap can still extend it. */
+      // Commit a same-day range on first tap so a single tap yields a 1-day plan.
       setDraftStart(iso)
       setDraftEnd(iso)
       onChange({ start: iso, end: iso })
@@ -161,13 +153,10 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
   )
 }
 
-/** Validate a draft range. A single-day plan (start == end) is allowed —
-   useful for "오늘 안에 발표 준비" style LAB2-S tasks. */
 export function rangeIsValid(r: { start?: string; end?: string }): boolean {
   return !!(r.start && r.end && r.end >= r.start)
 }
 
-/** Inclusive day count between two ISO dates. */
 export function rangeDays(start: string, end: string): number {
   return Math.round(
     (fromISO(end).getTime() - fromISO(start).getTime()) / 86_400_000,

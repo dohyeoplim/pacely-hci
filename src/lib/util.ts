@@ -1,5 +1,3 @@
-/* Small shared helpers. */
-
 import type { ISODate } from '../types'
 
 export function uid(prefix = 'id'): string {
@@ -13,8 +11,7 @@ export function todayISO(): ISODate {
   return toISO(new Date())
 }
 
-/** Calendar-day ISO string (YYYY-MM-DD) in the user's local time zone.
-   Using `toISOString` would return UTC and roll over a day too early in Asia. */
+// Local-time YYYY-MM-DD; toISOString would return UTC and roll over too early in Asia.
 export function toISO(d: Date): ISODate {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -26,7 +23,6 @@ export function fromISO(s: ISODate): Date {
   return new Date(`${s}T00:00:00`)
 }
 
-/** Whole-day difference, end - start. */
 export function daysBetween(start: ISODate, end: ISODate): number {
   const ms = fromISO(end).getTime() - fromISO(start).getTime()
   return Math.round(ms / 86_400_000)
@@ -38,7 +34,6 @@ export function addDays(s: ISODate, n: number): ISODate {
   return toISO(d)
 }
 
-/** Days remaining until `end`, counting from today. D-day = 0. */
 export function dDay(end: ISODate): number {
   return daysBetween(todayISO(), end)
 }
@@ -52,7 +47,6 @@ export function formatHours(h: number): string {
   return `${h.toFixed(1)}시간`
 }
 
-/** Time-of-day bucket — drives greeting + some context triggers. */
 export function timeOfDay(d = new Date()): 'morning' | 'afternoon' | 'evening' | 'night' {
   const h = d.getHours()
   if (h < 6) return 'night'

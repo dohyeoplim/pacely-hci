@@ -1,6 +1,3 @@
-/* Co-Execution home — in-progress daily view. Two rings (You vs Pacely)
-   give the Social-Facilitation cue from spec §F2.1. */
-
 import { useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 

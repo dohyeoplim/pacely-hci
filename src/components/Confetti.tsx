@@ -1,6 +1,3 @@
-/* Lightweight CSS confetti for the Co-Finish celebration. Pure-DOM particles,
-   no canvas — keeps the bundle small for a v1 PWA. */
-
 import { useMemo } from 'react'
 
 interface ConfettiProps {

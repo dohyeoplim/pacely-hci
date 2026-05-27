@@ -1,14 +1,3 @@
-/* Always-visible Pacely companion line on the home screen.
-
-   The orchestrator notification toast is event-driven and ephemeral; this
-   card is the *steady* companion presence that makes the HCI experiment
-   observable. The copy varies by:
-     - persona (gentle ↔ strict, supports LAB1 contrast)
-     - time of day (morning warm-up / afternoon nudge / night wind-down)
-     - completion ratio for today (0%, partial, done)
-     - streak status (no streak yet, ongoing, broken)
-*/
-
 import { useMemo } from 'react'
 
 import { PacelyAvatar } from './PacelyAvatar'
@@ -17,12 +6,12 @@ import { timeOfDay, todayISO } from '../lib/util'
 
 type Tod = ReturnType<typeof timeOfDay>
 type Context =
-  | 'kickoff'           // 0% done, fresh day
-  | 'midway'            // partial
-  | 'closing'           // nearly done
-  | 'celebrate'         // all done today
-  | 'idle-evening'      // night, still 0
-  | 'streak-keep'       // streak > 0, encourage continuity
+  | 'kickoff'
+  | 'midway'
+  | 'closing'
+  | 'celebrate'
+  | 'idle-evening'
+  | 'streak-keep'
 
 type Line = string
 
@@ -175,7 +164,6 @@ function pickContext(goal: Goal): Context {
   const streak = goal.progress.currentStreak
 
   if (total === 0) {
-    // Nothing scheduled today; nudge.
     return streak > 0 ? 'streak-keep' : 'kickoff'
   }
   if (ratio >= 1) return 'celebrate'
@@ -192,8 +180,6 @@ function pickLine(persona: Persona, goal: Goal, seed: number): string {
   const tod = timeOfDay()
   let lines = COACH_LINES[persona][ctx][tod]
   if (!lines || lines.length === 0) {
-    /* Fall back to kickoff for the active time-of-day so we always have
-       *something* to say. */
     lines = COACH_LINES[persona].kickoff[tod]
   }
   return lines[seed % lines.length]
@@ -202,9 +188,6 @@ function pickLine(persona: Persona, goal: Goal, seed: number): string {
 interface PacelyCoachCardProps {
   goal: Goal
   persona: Persona
-  /** Caller-provided seed to deterministically pick among message variants
-      for a given calendar day. Defaults to a value derived from "today" so
-      participants see a consistent message per visit but it rotates daily. */
   seed?: number
 }
 

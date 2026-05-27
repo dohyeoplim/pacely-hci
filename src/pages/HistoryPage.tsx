@@ -1,10 +1,3 @@
-/* /history — Past goals.
-
-   Lists finished + abandoned goals with quick stats so the user can look back
-   on what they've actually shipped. Tapping a finished goal goes to /finish
-   (which currently uses the current goal) — for now we just show the stats
-   inline. */
-
 import { useMemo } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 

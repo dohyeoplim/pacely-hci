@@ -1,13 +1,5 @@
-/* Bottom sheet primitive — backdrop + sliding panel.
-
-   Used for any modal flow that wants a clean "stay in the page" feel. Close
-   on backdrop tap or the explicit close button; ESC also closes for keyboard
-   users. Body scroll is locked while open. On open, focus moves into the
-   sheet; on close, focus is restored to whatever was active before.
-
-   Rendered through a React portal to document.body so it escapes the
-   route-frame's stacking context — otherwise the fixed tab bar (sibling of
-   route-frame) ends up painted on top of the sheet. */
+// Portaled to document.body so it escapes the route-frame's stacking context;
+// otherwise the fixed tab bar (a sibling of route-frame) paints on top of the sheet.
 
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -24,7 +16,7 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
   const titleId = useId()
   const sheetRef = useRef<HTMLElement | null>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
-  /* Prevents a touch-then-click double event from firing onClose twice on iOS. */
+  // Prevents a touch-then-click double event from firing onClose twice on iOS.
   const closingRef = useRef(false)
 
   useEffect(() => {
@@ -44,8 +36,6 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
-    /* Move focus inside the sheet so screen readers and keyboard users land
-       on it instead of the (now-inert) page below. */
     const t = window.setTimeout(() => {
       const root = sheetRef.current
       if (!root) return

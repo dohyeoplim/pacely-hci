@@ -1,8 +1,3 @@
-/* Compact stats strip between the goal card and the progress rings.
-
-   Two pills surface non-obvious context — current streak and cumulative
-   focus hours — so the home page feels alive on every return visit. */
-
 import { formatHours } from '../lib/util'
 
 interface HomeStatsProps {

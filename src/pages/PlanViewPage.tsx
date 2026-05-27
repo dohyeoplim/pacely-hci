@@ -1,9 +1,3 @@
-/* /plan — Revisits the full plan after the goal has started.
-
-   Shows: header with goal title (tap-to-edit), the original plan card with
-   milestones, and a vertical list of every planned day with subjects + hours
-   so the user can see the full arc, not just today. */
-
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 

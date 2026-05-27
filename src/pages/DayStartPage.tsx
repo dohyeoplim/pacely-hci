@@ -1,5 +1,3 @@
-/* Co-Execution — daily entry point (spec §F2.1 "하루 시작하기"). */
-
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 

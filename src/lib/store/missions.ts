@@ -1,33 +1,11 @@
-/* Sub-task generator — Pacely's core HCI value.
-
-   A real Planner agent would call an LLM and return a structured day-by-day
-   breakdown. This mock approximates that by composing concrete, action-verb
-   sub-tasks from per-category / per-phase recipe libraries, then rotating
-   them across days so consecutive days never read identically. Each day's
-   sub-task minutes sum to the day's planned hours.
-
-   Design rules (drawn from the experiment plan §6 LAB2-S/L rubric):
-     1. The first sub-task of every day is an "immediately actionable" warm-up
-        (15-25 min) so the participant can start without thinking.
-     2. Each sub-task title contains a verb + a concrete object — never
-        vague nouns like "공부" or "자료 준비".
-     3. Subjects rotate so a day rarely repeats yesterday's exact mix —
-        gives the plan a personalised feel beyond what Notion / paper offers.
-*/
-
 import type { GoalCategory, MissionTask, Plan } from '../../types'
 import { uid } from '../util'
-
-/* --- Building blocks per phase ------------------------------------------*/
 
 type Phase = 0 | 1 | 2
 
 interface PhaseRecipe {
-  /** Light warm-up that's always doable in 15-25 minutes. */
   warmup: (subject?: string) => string
-  /** 2-3 deeper focus blocks for the bulk of the day. */
   focus: ((subject?: string) => string)[]
-  /** Optional consolidation/review task at the end. */
   closer?: (subject?: string) => string
 }
 
@@ -167,10 +145,6 @@ const RECIPES: Record<GoalCategory, Record<Phase, PhaseRecipe>> = {
   custom: CUSTOM_PHASES,
 }
 
-/* --- Time distribution --------------------------------------------------*/
-
-/** Spread a day's total minutes across N tasks with a warm-up that's at most
-   25 min and a closer that's roughly 10-15% of the day. */
 function distributeMinutes(totalMin: number, count: number): number[] {
   if (count <= 1) return [totalMin]
   const warmup = Math.min(25, Math.round(totalMin * 0.12))
@@ -183,15 +157,12 @@ function distributeMinutes(totalMin: number, count: number): number[] {
   for (let i = 0; i < focusCount; i++) out.push(perFocus)
   if (closer > 0) out.push(closer)
 
-  // Adjust last focus block so the sum matches the day total within ±5 min.
   const drift = totalMin - out.reduce((s, n) => s + n, 0)
   if (focusCount > 0) {
     out[focusCount] = Math.max(15, out[focusCount] + drift)
   }
   return out
 }
-
-/* --- Public API ---------------------------------------------------------*/
 
 export function generateMissions(plan: Plan, category: GoalCategory): MissionTask[] {
   const subjects = plan.subjects
@@ -202,8 +173,6 @@ export function generateMissions(plan: Plan, category: GoalCategory): MissionTas
     const phase = day.phase
     const recipe = RECIPES[category][phase]
 
-    /* Choose 1-2 subjects to focus on today (rotation gives a personalised
-       feel — paper / Notion can't do this). */
     const todaysSubjects: (string | undefined)[] =
       subjects.length === 0
         ? [undefined]
@@ -214,20 +183,14 @@ export function generateMissions(plan: Plan, category: GoalCategory): MissionTas
               subjects[(dayIndex + 1) % subjects.length],
             ]
 
-    /* Build a per-day task list: warmup + N focus + optional closer.
-       For longer days (>3h) we add a second focus block; for very short
-       days (<=1.5h) we collapse to warmup + one focus. */
     const focusSlots = totalMin <= 90 ? 1 : totalMin <= 240 ? 2 : 3
     const includeCloser = totalMin >= 120 && !!recipe.closer
     const taskCount = 1 + focusSlots + (includeCloser ? 1 : 0)
     const allocations = distributeMinutes(totalMin, taskCount)
 
-    /* Pick the warmup once (uses the first subject if any). */
     const warmupSubject = todaysSubjects[0]
     const titles: string[] = [recipe.warmup(warmupSubject)]
 
-    /* Fill focus slots by walking through recipe.focus, paired with
-       rotating subjects so each block reads distinctly. */
     for (let i = 0; i < focusSlots; i++) {
       const focusFn = recipe.focus[(dayIndex + i) % recipe.focus.length]
       const subj = todaysSubjects[i % todaysSubjects.length]

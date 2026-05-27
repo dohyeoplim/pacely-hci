@@ -1,7 +1,3 @@
-/* Demo seed — used by `?seed=demo` so screenshots and demos can land directly
-   on the in-progress home / day-start without manually clicking through the
-   planning flow. Idempotent: it bails out if a goal already exists. */
-
 import type { Goal } from '../../types'
 import { getAgents } from '../agents'
 import { addDays, todayISO, uid } from '../util'
@@ -21,7 +17,6 @@ export async function buildDemoGoal(): Promise<Goal> {
   })
 
   const missions = generateMissions(plan, 'exam')
-  // Mark earlier days as completed so the progress rings have real values.
   const today = todayISO()
   const completedMissions = missions.map((m) => {
     if (m.date < today) {

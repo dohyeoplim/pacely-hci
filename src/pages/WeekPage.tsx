@@ -1,9 +1,3 @@
-/* /week — Weekly mission view.
-
-   Shows the next ~14 days of the plan as a vertical list. Each row is a day
-   card with subjects, hours, and completion ratio. Tap a row to open that
-   day's missions in the edit sheet (or add a new one). */
-
 import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 

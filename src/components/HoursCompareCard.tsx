@@ -1,6 +1,3 @@
-/* Day-start "오늘의 수행 시간" card (Co-Execution F2.1) — visualizes You vs
-   Pacely as the Social Facilitation companion runner. */
-
 interface HoursCompareCardProps {
   userHours: number
   pacelyHours: number

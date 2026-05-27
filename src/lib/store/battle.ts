@@ -1,6 +1,3 @@
-/* Battle helpers — used by the Compete tab. Opponent progress is simulated
-   from elapsed time + persona, so the comparison feels alive without a server. */
-
 import type { Battle, Goal } from '../../types'
 import { uid } from '../util'
 
@@ -12,7 +9,6 @@ const OPPONENT_POOL = [
   { name: '하늘', persona: 'steady' as const },
 ]
 
-/** Pacing rate per day, 0..1, by persona. */
 const PERSONA_PACE: Record<Battle['opponent']['persona'], number> = {
   fast: 0.075,
   steady: 0.045,
@@ -37,7 +33,6 @@ export function createBattle(goalTitle: string, stake: string): Battle {
   }
 }
 
-/** Recompute opponent progress from elapsed time. */
 export function tickBattle(b: Battle, now = Date.now()): Battle {
   if (b.status !== 'active') return b
   const elapsedDays = (now - b.startedAt) / 86_400_000
@@ -46,7 +41,6 @@ export function tickBattle(b: Battle, now = Date.now()): Battle {
   return { ...b, opponent: { ...b.opponent, progress } }
 }
 
-/** Resolve a battle against the user's current goal adherence. */
 export function resolveBattle(b: Battle, goal: Goal | null): Battle {
   if (b.status !== 'active') return b
   const userProgress = goal ? goal.progress.adherenceRate : 0

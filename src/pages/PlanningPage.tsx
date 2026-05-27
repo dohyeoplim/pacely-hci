@@ -1,21 +1,3 @@
-/* Co-Planning — chat-driven flow.
-
-   The very first thing the user sees is a single composer:
-
-       "이번엔 어떤 목표를 이루고 싶으세요?"  ← prompt
-       [textarea — user types]                ← input
-
-   On submit, the LLM:
-     · classifies the goal into a category (exam / project / workout / diary / custom)
-     · drafts a companion-toned acknowledgement
-     · proposes subjects / phases (when the category supports them)
-     · suggests a reasonable duration
-
-   The rest of the flow is built on top of that: subjects (if applicable) →
-   dates → daily hours → persona → plan + sub-tasks. Category selection is
-   never an explicit step — if the inference is wrong, a small switcher
-   below the response lets the user override. */
-
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -124,9 +106,6 @@ export function PlanningPage() {
   const [goalReaction, setGoalReaction] = useState<GoalReaction | null>(null)
   const [goalParsing, setGoalParsing] = useState(false)
   const [suggestedDays, setSuggestedDays] = useState<number | null>(null)
-  /* Follow-up dialogue state — user can optionally answer Pacely's
-     clarifying question, and the answer is folded back into the goal text
-     so subsequent plan/missions calls see the enriched context. */
   const [followUpPending, setFollowUpPending] = useState('')
   const [followUpAnswer, setFollowUpAnswer] = useState<string | null>(null)
 
@@ -140,8 +119,6 @@ export function PlanningPage() {
   const steps = useMemo(() => stepsFor(category), [category])
   const stepIndex = steps.indexOf(step)
 
-  /* Pre-fill the calendar from the LLM's suggested days when first entering
-     the period step. */
   useEffect(() => {
     if (step !== 'period') return
     if (range.start) return
@@ -155,7 +132,6 @@ export function PlanningPage() {
     return deriveTitle(goalText, CATEGORY_DEFAULT_TITLE[category])
   }, [category, goalText])
 
-  /* Plan + sub-task generation once we reach the plan step. */
   useEffect(() => {
     if (step !== 'plan' || plan || !category || !range.start || !range.end) return
     let cancelled = false
@@ -220,11 +196,6 @@ export function PlanningPage() {
     subjects,
   ])
 
-  /* Auto-scroll deliberately removed. The smooth-scroll-on-mutation pattern
-     was fighting user input (locked scroll once it kicked in) and felt
-     worse than letting users scroll themselves. New bubbles append below
-     naturally; users see them in the normal scroll position. */
-
   const goToNext = () => {
     const i = steps.indexOf(step)
     if (i < 0 || i === steps.length - 1) return
@@ -240,20 +211,15 @@ export function PlanningPage() {
     setStep(steps[i - 1])
   }
 
-  /* Compose the enriched goal text that downstream calls see — original
-     sentence plus any clarifying follow-up answer the user gave. */
   const enrichedGoalText = useMemo(() => {
     if (!followUpAnswer) return goalText
     return `${goalText}\n\n[추가 정보] ${followUpAnswer}`
   }, [goalText, followUpAnswer])
 
-  /* Submit the user's goal sentence — LLM infers category, drafts a reply,
-     and suggests subjects + duration. */
   const onSubmitGoal = async () => {
     const text = pendingText.trim()
     if (!text) return
     setGoalText(text)
-    /* Reset any prior follow-up answer when the seed sentence changes. */
     setFollowUpAnswer(null)
     setFollowUpPending('')
     setGoalParsing(true)
@@ -291,20 +257,14 @@ export function PlanningPage() {
     }
   }
 
-  /* Confirm the follow-up answer — locks it in and clears the pending
-     textarea. Does NOT re-run parseGoal (kept light); the answer is folded
-     into enrichedGoalText for plan + missions generation. */
   const onConfirmFollowUp = () => {
     const ans = followUpPending.trim()
     if (!ans) return
     setFollowUpAnswer(ans)
   }
 
-  /* User can override the LLM's inferred category via a small chip switcher. */
   const onSwitchCategory = (next: GoalCategory) => {
     setCategory(next)
-    /* Reset subject suggestions only if switching to a category that
-       doesn't carry the previous list naturally. */
     if (next !== 'exam' && next !== 'project') setSubjects([])
   }
 
@@ -398,14 +358,12 @@ export function PlanningPage() {
               자유롭게 적어주세요 — 같이 다듬어볼게요.
             </ChatBubble>
 
-            {/* User's submitted goal as a right-aligned bubble. */}
             {goalText && (
               <div className="chat-row chat-row--user">
                 <div className="chat-bubble chat-bubble--user">{goalText}</div>
               </div>
             )}
 
-            {/* Composer only when the user hasn't submitted yet. */}
             {!goalText && !goalParsing && (
               <ChatComposer
                 value={pendingText}
@@ -494,8 +452,6 @@ export function PlanningPage() {
                   variant="ghost"
                   disabled={goalParsing}
                   onClick={() => {
-                    /* Re-submit the same text — useful if the user wants a
-                       fresh take from the model. */
                     setGoalText('')
                     setGoalReaction(null)
                     setPendingText(pendingText || goalText)

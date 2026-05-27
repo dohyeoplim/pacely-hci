@@ -1,8 +1,3 @@
-/* Derives the Progress aggregate from a goal's missions + plan.
-
-   Recomputed after every mission toggle so the daily-home comparison card and
-   the completion summary always reflect current state. */
-
 import type { Goal, MissionTask, Progress } from '../../types'
 import { todayISO } from '../util'
 
@@ -26,8 +21,6 @@ export function recomputeProgress(goal: Goal): Progress {
 
   const daysWithPacely = new Set(completed.map((m) => m.date)).size
 
-  // Walk backward from today: counts consecutive days with ≥1 completed
-  // mission. Includes today if any mission done today.
   const { currentStreak, missedStreak, bestStreak } = computeStreaks(
     goal.missions,
     goal.plan.dailyAllocation.map((d) => d.date),
@@ -60,8 +53,6 @@ function computeStreaks(
 
   const dueDates = planDates.filter((d) => d <= today)
 
-  // Current streak: walk back from today, count consecutive completed days.
-  // If today not yet completed, start from yesterday but still count from 0.
   let currentStreak = 0
   let missedStreak = 0
   let firstSeenIncomplete = false
@@ -71,9 +62,8 @@ function computeStreaks(
       currentStreak++
       firstSeenIncomplete = true
     } else {
-      // today specifically: don't break the streak yet, just record miss
+      // Today incomplete doesn't break a streak built from prior days.
       if (date === today && !firstSeenIncomplete) {
-        // today not done — but streak from yesterday onward can still count
         continue
       }
       break
@@ -86,7 +76,6 @@ function computeStreaks(
     missedStreak++
   }
 
-  // Best streak: scan the full ordered date list.
   let best = 0
   let run = 0
   for (const date of planDates) {

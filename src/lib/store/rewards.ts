@@ -1,5 +1,3 @@
-/* Reward generation + avatar progression — fires on goal completion. */
-
 import type {
   Goal,
   GoalCategory,
@@ -15,7 +13,6 @@ interface PartnerReward {
   value: string
 }
 
-/** Two on-brand partner rewards per category. */
 const PARTNER_REWARDS: Record<GoalCategory, PartnerReward[]> = {
   exam: [
     {
@@ -115,7 +112,6 @@ export function rewardsForGoal(goal: Goal): Reward[] {
   }))
 }
 
-/** Returns a new avatar after one more completed goal. */
 export function levelUpAvatar(
   current: PacelyAvatar,
   goal: Goal,

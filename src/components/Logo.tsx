@@ -1,12 +1,3 @@
-/* Pacely brand mark.
-
-   Renders the canonical "P-loop" symbol from public/pacely_logo_symbol.svg so
-   in-app branding matches the installed app icon. Two variants:
-     - mark:   raw symbol on transparent background (color overrides via fill)
-     - circle: symbol centered inside the navy gradient badge (used for chat
-               avatars and home header)
-*/
-
 interface LogoProps {
   size?: number
   variant?: 'mark' | 'circle'

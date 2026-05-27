@@ -2,9 +2,7 @@ interface ProgressRingProps {
   /** 0..1 */
   value: number
   label: string
-  /** main accent color */
   color: string
-  /** ring track color, defaults to a muted derivative of `color` */
   trackColor?: string
   size?: number
 }

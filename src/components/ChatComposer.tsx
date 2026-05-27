@@ -1,7 +1,3 @@
-/* Full-width chat composer — textarea + send button, sized like a real
-   messaging app input. Auto-grows vertically with content (no fixed cols
-   width), submits on Enter (Shift+Enter for newline). */
-
 import { useEffect, useRef } from 'react'
 
 interface ChatComposerProps {
@@ -25,8 +21,6 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
-  /* Height autosize — width is fixed to the container so we only adjust
-     height as the content wraps. */
   useEffect(() => {
     const el = ref.current
     if (!el) return

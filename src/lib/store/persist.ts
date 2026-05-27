@@ -1,9 +1,3 @@
-/* localStorage persistence for the Pacely store.
-
-   The whole state tree is serialized under one key. Mission checks are also
-   mirrored into an offline sync queue (see store.tsx) so core records survive
-   without a network — spec §6 offline requirement. */
-
 import type { PacelyState } from './store'
 
 const KEY = 'pacely.state.v1'
@@ -22,7 +16,7 @@ export function saveState(state: PacelyState): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(state))
   } catch {
-    // storage full / unavailable — non-fatal for a demo PWA
+    // storage full / unavailable — non-fatal
   }
 }
 

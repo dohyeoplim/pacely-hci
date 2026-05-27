@@ -1,6 +1,3 @@
-/* Co-Finish — completion screen (spec §F3). Tap "다음 목표 세우기" to roll
-   into a new planning flow. */
-
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,9 +13,6 @@ export function FinishPage() {
   const { currentGoal, state } = usePacely()
   const [shareHint, setShareHint] = useState<string | null>(null)
   const inStudy = isResearchMode(state.experiment)
-  /* The goal_finished event is already recorded inside `finishGoal()` in the
-     store, so we do not refire it here — landing on /finish should be a pure
-     view of the completion state. */
 
   const onShare = async () => {
     if (!currentGoal || !stats) return
@@ -41,7 +35,7 @@ export function FinishPage() {
       setShareHint('이 기기에서는 공유를 지원하지 않아요')
       setTimeout(() => setShareHint(null), 2400)
     } catch {
-      // user cancelled — no-op
+      /* user cancelled */
     }
   }
 

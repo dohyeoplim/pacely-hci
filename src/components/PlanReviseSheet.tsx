@@ -1,10 +1,3 @@
-/* "직접 수정" sheet shown from the planning preview step.
-
-   Lets the participant retune the plan in place — daily hours, subjects,
-   persona — and then regenerate the Plan + sub-tasks without losing the
-   chat context. This is the lever that separates Pacely from a Notion
-   template: the AI plan is editable as a conversation, not just a doc. */
-
 import { useState } from 'react'
 
 import { Button } from './Button'
@@ -20,7 +13,6 @@ interface PlanReviseSheetProps {
   initialHours: number
   initialSubjects: string[]
   initialPersona: Persona
-  /** Show the subjects field only for categories where it's meaningful. */
   showSubjects: boolean
   subjectSuggestions: string[]
   onClose: () => void

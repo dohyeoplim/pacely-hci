@@ -1,9 +1,3 @@
-/* Tap-driven hour picker (1–14h).
-
-   The Figma frame shows a fine-tick ruler — we render that visually with
-   subdivision ticks while keeping selection on whole-hour steps. The label
-   row thins out when the range is large so 14 labels still fit on mobile. */
-
 import { clamp } from '../lib/util'
 
 interface HourPickerProps {
@@ -15,8 +9,6 @@ interface HourPickerProps {
 
 const SUBDIV = 4 // ticks between integers
 
-/** When the range is wide, only show every Nth hour label so the row doesn't
-   become a wall of numbers. The endpoints + the active hour are always kept. */
 function visibleLabelHours(min: number, max: number, value: number): number[] {
   const span = max - min
   const stride = span <= 7 ? 1 : span <= 10 ? 2 : 3

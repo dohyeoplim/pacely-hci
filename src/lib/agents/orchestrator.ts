@@ -1,9 +1,3 @@
-/* Orchestrator — routes user events to the agent modules and collects output.
-
-   Implements the collaboration scenario from spec §3.3:
-     missed missions → Analyzer extracts a pattern → Adjuster replans +
-     generates a persona-matched notification → result handed back to the UI. */
-
 import type { Goal, UserEvent } from '../../types'
 import type {
   AdjusterAgent,
@@ -49,7 +43,6 @@ export class MockOrchestrator implements Orchestrator {
       }
 
       case 'mission_missed': {
-        // §3.3: route misses to the Analyzer, then let the Adjuster react.
         const insights = await this.deps.analyzer.extractPatterns(log)
         result.insights = insights
 
@@ -85,5 +78,4 @@ export class MockOrchestrator implements Orchestrator {
   }
 }
 
-/** Re-export for callers that only need the event constructor shape. */
 export type { UserEvent }
