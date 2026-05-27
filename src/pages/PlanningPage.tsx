@@ -1,13 +1,18 @@
 /* Co-Planning — chat-driven flow (spec §F1).
 
-   For exam + project goals we slot a "subjects" step between category and
-   period, so the generated plan can rotate per-subject missions through each
-   day (e.g. 선형대수, 확률통계, 알고리즘). Other categories skip that step.
+   Flow:
+     1. category   — pick category card
+     2. goal       — type the goal sentence; Pacely responds (LLM) and
+                     proposes subjects + day count
+     3. subjects   — refine the LLM-suggested subjects/phases (exam/project)
+     4. period     — pick dates; pre-filled from suggestedDays
+     5. hours      — daily hour budget
+     6. persona    — companion vs coach
+     7. plan       — show generated plan + missions; editable per-day
 
-   The plan-preview step is the heart of Pacely's HCI value prop: the AI
-   produces a detailed day-by-day breakdown with concrete sub-tasks, then
-   stays editable as a conversation — daily hours, subjects, persona, and
-   per-day sub-tasks can all be tweaked without redoing the wizard. */
+   The plan-preview step is the heart of Pacely's HCI value: the AI produces
+   a detailed day-by-day breakdown with concrete sub-tasks, then stays
+   editable as a conversation. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -30,10 +35,18 @@ import { usePacely } from '../lib/store/store'
 import { addDays, todayISO, uid } from '../lib/util'
 import type { GoalCategory, MissionTask, Persona, Plan } from '../types'
 
-type Step = 'category' | 'subjects' | 'period' | 'hours' | 'persona' | 'plan'
+type Step =
+  | 'category'
+  | 'goal'
+  | 'subjects'
+  | 'period'
+  | 'hours'
+  | 'persona'
+  | 'plan'
 
 const ALL_STEPS: Step[] = [
   'category',
+  'goal',
   'subjects',
   'period',
   'hours',
@@ -72,13 +85,7 @@ const SUBJECT_SUGGESTIONS: Record<GoalCategory, string[]> = {
   custom: [],
 }
 
-const SUBJECT_PROMPT: Partial<Record<GoalCategory, string>> = {
-  exam: '어떤 과목들을 준비하시나요?',
-  project: '어떤 단계로 진행하실 거예요?',
-}
-
-/* Companion-tone reactions that play once the plan is generated, varied by
-   persona so participants in the LAB1 LAB3 conditions get the right feel. */
+/* Companion-tone reactions that play once the plan is generated. */
 const PLAN_INTRO_BY_PERSONA: Record<Persona, [string, string, string]> = {
   gentle: [
     '같이 차근차근 짜봤어요.',
@@ -107,6 +114,11 @@ interface DraftMissionSheet {
   date?: string
 }
 
+interface GoalReaction {
+  greeting: string
+  followUp?: string
+}
+
 export function PlanningPage() {
   const navigate = useNavigate()
   const { state, createGoal, setPersona } = usePacely()
@@ -123,6 +135,11 @@ export function PlanningPage() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [planLoading, setPlanLoading] = useState(false)
 
+  /* Goal-step LLM interaction state. */
+  const [goalReaction, setGoalReaction] = useState<GoalReaction | null>(null)
+  const [goalParsing, setGoalParsing] = useState(false)
+  const [suggestedDays, setSuggestedDays] = useState<number | null>(null)
+
   /* Draft missions live alongside the plan so the user can edit individual
      sub-tasks before committing. Regenerated whenever a new plan lands. */
   const [draftMissions, setDraftMissions] = useState<MissionTask[]>([])
@@ -137,8 +154,7 @@ export function PlanningPage() {
   const steps = useMemo(() => stepsFor(category), [category])
   const stepIndex = steps.indexOf(step)
 
-  /* Grow the goal-input textarea with its content instead of locking it at a
-     fixed height — feels like a normal chat composer. */
+  /* Grow the goal-input textarea with its content. */
   useEffect(() => {
     const el = goalTextareaRef.current
     if (!el) return
@@ -146,27 +162,26 @@ export function PlanningPage() {
     el.style.height = `${el.scrollHeight}px`
   }, [pendingText, step])
 
-  /* Pre-seed the date range so the user lands on a sensible default instead
-     of an empty calendar. Anchor at today + 14 days with a small ±3-day
-     jitter so demo screenshots and the LAB2-L "2주 프로젝트" framing don't
-     feel templated. Skips if the user has already started picking. */
+  /* When entering the period step, pre-fill the calendar from the LLM's
+     suggested day count (falls back to today + 14 if no suggestion).
+     Skips if the user has already picked a range. */
   useEffect(() => {
-    if (!category || range.start) return
-    const offset = 11 + Math.floor(Math.random() * 7) // 11..17 days inclusive
+    if (step !== 'period') return
+    if (range.start) return
+    const days = suggestedDays ?? 14
+    const offset = Math.max(0, days - 1)
     setRange({
       start: todayISO(),
       end: addDays(todayISO(), offset),
     })
-  }, [category, range.start])
+  }, [step, range.start, suggestedDays])
 
   const title = useMemo(() => {
     if (!category) return 'Pacely와 목표를 정해봐요.'
     return deriveTitle(goalText, CATEGORY_DEFAULT_TITLE[category])
   }, [category, goalText])
 
-  // Generate plan + sub-tasks once we reach the plan step. The LLM-backed
-  // planner produces both in one round trip; the mock falls back to the
-  // local templated mission generator.
+  /* Plan + sub-task generation once we reach the plan step. */
   useEffect(() => {
     if (step !== 'plan' || plan || !category || !range.start || !range.end) return
     let cancelled = false
@@ -223,13 +238,7 @@ export function PlanningPage() {
     }
   }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
 
-  /* Auto-scroll the chat to the latest bubble.
-
-     We anchor on a sentinel <div ref={bottomRef} /> at the very end of the
-     planning-body and call scrollIntoView on it. scrollIntoView is more
-     reliable than window.scrollTo(scrollHeight) because the browser computes
-     the exact target from element layout, so a smooth scroll won't undershoot
-     when content keeps growing mid-animation. */
+  /* Auto-scroll the chat to the latest bubble. */
   useEffect(() => {
     const scrollToBottom = () => {
       window.requestAnimationFrame(() => {
@@ -254,7 +263,7 @@ export function PlanningPage() {
     })
     ro.observe(body)
     return () => ro.disconnect()
-  }, [step, plan])
+  }, [step, plan, goalReaction])
 
   const goToNext = () => {
     const i = steps.indexOf(step)
@@ -275,13 +284,55 @@ export function PlanningPage() {
     setCategory(c)
     setGoalText(CATEGORY_PROMPT[c])
     setPendingText(CATEGORY_PROMPT[c])
-    // Pre-seed project defaults so users see them on entry.
-    if (c === 'project') setSubjects(['리서치', '디자인', '구현', 'QA'])
-    else setSubjects([])
-    setStep(stepsFor(c)[1])
+    setSubjects([])
+    setGoalReaction(null)
+    setSuggestedDays(null)
+    setStep(stepsFor(c)[1]) // 'goal'
   }
 
-  const onConfirmGoalText = () => setGoalText(pendingText)
+  /* Confirm the goal text and ask Pacely to react. Pacely's response drives
+     the subject suggestions + day count pre-fill in later steps. */
+  const onConfirmGoal = async () => {
+    if (!category) return
+    const text = pendingText.trim() || CATEGORY_PROMPT[category]
+    setGoalText(text)
+    setPendingText(text)
+
+    setGoalParsing(true)
+    try {
+      const agent = getAgents().planner
+      const result = agent.parseGoal
+        ? await agent.parseGoal({
+            goalText: text,
+            category,
+            persona: chosenPersona,
+          })
+        : await createMockAgents().planner.parseGoal!({
+            goalText: text,
+            category,
+            persona: chosenPersona,
+          })
+      setGoalReaction({ greeting: result.greeting, followUp: result.followUp })
+      setSuggestedDays(result.suggestedDays)
+      if (
+        (category === 'exam' || category === 'project') &&
+        result.suggestedSubjects.length > 0
+      ) {
+        setSubjects(result.suggestedSubjects)
+      }
+    } catch (err) {
+      console.warn('[PlanningPage] parseGoal failed', err)
+      setGoalReaction({
+        greeting:
+          chosenPersona === 'gentle'
+            ? '좋은 목표예요. 같이 잘 짜봐요.'
+            : '좋습니다. 계획부터 정확히 잡겠습니다.',
+      })
+      setSuggestedDays(14)
+    } finally {
+      setGoalParsing(false)
+    }
+  }
 
   const onStartPlan = () => {
     if (!plan || !category) return
@@ -295,8 +346,7 @@ export function PlanningPage() {
     navigate('/day-start')
   }
 
-  /* Open the inline plan revise sheet — lets us tune hours / subjects /
-     persona without losing the chat context, then regenerates everything. */
+  /* Open the inline plan revise sheet. */
   const onApplyRevise = (next: {
     hours: number
     subjects: string[]
@@ -305,12 +355,11 @@ export function PlanningPage() {
     setHours(next.hours)
     setSubjects(next.subjects)
     setChosenPersona(next.persona)
-    setPlan(null) // triggers the plan-step effect to re-run with new inputs
+    setPlan(null) // triggers regeneration
     setDraftMissions([])
   }
 
-  /* Per-day sub-task editing handlers — the user can refine the AI's
-     proposed missions or add their own before committing the plan. */
+  /* Per-day mission editing handlers. */
   const handleSaveMission = (input: {
     id?: string
     title: string
@@ -385,14 +434,85 @@ export function PlanningPage() {
           </>
         )}
 
+        {step === 'goal' && category && (
+          <>
+            <ChatBubble from="pacely">
+              이번엔 어떤 목표를 이루고 싶으세요?
+            </ChatBubble>
+            <ChatBubble from="pacely" hideAvatar>
+              자유롭게 적어주세요 — 같이 다듬어볼게요.
+            </ChatBubble>
+            <div className="chat-row chat-row--user">
+              <textarea
+                ref={goalTextareaRef}
+                className="goal-input chat-bubble chat-bubble--user"
+                value={pendingText}
+                placeholder="예: 2주 안에 운영체제 시험 준비하기"
+                rows={1}
+                autoFocus
+                onChange={(e) => setPendingText(e.target.value)}
+              />
+            </div>
+
+            {goalParsing && (
+              <ChatBubble from="pacely">
+                <span className="planning-thinking">
+                  Pacely가 정리 중이에요…
+                </span>
+              </ChatBubble>
+            )}
+
+            {goalReaction && !goalParsing && (
+              <>
+                <ChatBubble from="pacely">{goalReaction.greeting}</ChatBubble>
+                {goalReaction.followUp && (
+                  <ChatBubble from="pacely" hideAvatar>
+                    {goalReaction.followUp}
+                  </ChatBubble>
+                )}
+              </>
+            )}
+
+            <div className="planning-cta planning-cta--stack">
+              {!goalReaction ? (
+                <Button
+                  block
+                  disabled={!pendingText.trim() || goalParsing}
+                  onClick={onConfirmGoal}
+                >
+                  {goalParsing ? '정리 중…' : 'Pacely에게 보여주기'}
+                </Button>
+              ) : (
+                <>
+                  <Button block onClick={goToNext}>
+                    다음 단계로
+                  </Button>
+                  <Button
+                    block
+                    variant="ghost"
+                    disabled={goalParsing}
+                    onClick={onConfirmGoal}
+                  >
+                    다시 정리해줘
+                  </Button>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
         {step === 'subjects' && category && (
           <>
-            <ChatBubble from="pacely">{SUBJECT_PROMPT[category]}</ChatBubble>
-            <ChatBubble from="pacely" hideAvatar>
+            <ChatBubble from="pacely">
               {category === 'exam'
-                ? '과목을 더할수록 하루를 더 잘게 쪼개서 챙겨요.'
-                : '단계를 적어두면 매일 그 단계의 작업이 나와요.'}
+                ? '어떤 과목들을 다룰까요?'
+                : '어떤 단계로 진행해볼까요?'}
             </ChatBubble>
+            {subjects.length > 0 && (
+              <ChatBubble from="pacely" hideAvatar>
+                제가 이렇게 정리해봤어요. 필요하면 바꿔도 좋아요.
+              </ChatBubble>
+            )}
             <SubjectInput
               value={subjects}
               onChange={setSubjects}
@@ -421,22 +541,12 @@ export function PlanningPage() {
         {step === 'period' && category && (
           <>
             <ChatBubble from="pacely">
-              이번엔 어떤 목표를 이루고 싶으세요?
+              {suggestedDays
+                ? `목표를 보니 ${suggestedDays}일 정도면 충분해 보여요.`
+                : '언제부터 언제까지 같이 갈까요?'}
             </ChatBubble>
-            <div className="chat-row chat-row--user">
-              <textarea
-                ref={goalTextareaRef}
-                className="goal-input chat-bubble chat-bubble--user"
-                value={pendingText}
-                placeholder="목표를 자유롭게 적어주세요."
-                rows={1}
-                autoFocus
-                onChange={(e) => setPendingText(e.target.value)}
-                onBlur={onConfirmGoalText}
-              />
-            </div>
             <ChatBubble from="pacely" hideAvatar>
-              언제부터 언제까지 같이 갈까요? 하루짜리도 좋아요.
+              날짜는 자유롭게 바꿔도 돼요. 하루짜리도 가능해요.
             </ChatBubble>
             <Calendar
               value={range}
@@ -454,10 +564,7 @@ export function PlanningPage() {
               <Button
                 block
                 disabled={!rangeIsValid(range)}
-                onClick={() => {
-                  onConfirmGoalText()
-                  goToNext()
-                }}
+                onClick={goToNext}
               >
                 다음
               </Button>
@@ -567,8 +674,6 @@ export function PlanningPage() {
           </>
         )}
 
-        {/* Sentinel anchored at the very bottom so scrollIntoView always
-            lands past the latest content. */}
         <div ref={bottomRef} className="planning-body__sentinel" aria-hidden />
       </div>
 
