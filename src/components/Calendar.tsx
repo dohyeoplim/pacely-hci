@@ -50,12 +50,17 @@ export function Calendar({ value, onChange, minDate }: CalendarProps) {
   const handlePick = (iso: string) => {
     if (minDate && iso < minDate) return
     if (!draftStart || (draftStart && draftEnd)) {
+      /* Fresh start — also commit a same-day range immediately so a single
+         tap can yield a 1-day plan. The second tap can still extend it. */
       setDraftStart(iso)
-      setDraftEnd(undefined)
+      setDraftEnd(iso)
+      onChange({ start: iso, end: iso })
       return
     }
     if (iso < draftStart) {
       setDraftStart(iso)
+      setDraftEnd(iso)
+      onChange({ start: iso, end: iso })
       return
     }
     setDraftEnd(iso)
@@ -156,9 +161,10 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
   )
 }
 
-/** Validate a draft range. */
+/** Validate a draft range. A single-day plan (start == end) is allowed —
+   useful for "오늘 안에 발표 준비" style LAB2-S tasks. */
 export function rangeIsValid(r: { start?: string; end?: string }): boolean {
-  return !!(r.start && r.end && r.end > r.start)
+  return !!(r.start && r.end && r.end >= r.start)
 }
 
 /** Inclusive day count between two ISO dates. */
