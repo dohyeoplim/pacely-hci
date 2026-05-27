@@ -24,7 +24,7 @@ import { PlanCard } from '../components/PlanCard'
 import { PlanDailyStrip } from '../components/PlanDailyStrip'
 import { PlanReviseSheet } from '../components/PlanReviseSheet'
 import { SubjectInput } from '../components/SubjectInput'
-import { getAgents } from '../lib/agents'
+import { createMockAgents, getAgents } from '../lib/agents'
 import { generateMissions } from '../lib/store/missions'
 import { usePacely } from '../lib/store/store'
 import { addDays, todayISO, uid } from '../lib/util'
@@ -164,30 +164,60 @@ export function PlanningPage() {
     return deriveTitle(goalText, CATEGORY_DEFAULT_TITLE[category])
   }, [category, goalText])
 
-  // Generate plan once we reach the plan step.
+  // Generate plan + sub-tasks once we reach the plan step. The LLM-backed
+  // planner produces both in one round trip; the mock falls back to the
+  // local templated mission generator.
   useEffect(() => {
     if (step !== 'plan' || plan || !category || !range.start || !range.end) return
     let cancelled = false
     setPlanLoading(true)
-    void getAgents()
-      .planner.decomposeGoal({
-        goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
-        category,
-        startDate: range.start,
-        endDate: range.end,
-        dailyHours: hours,
-        persona: chosenPersona,
-        subjects: subjects.length > 0 ? subjects : undefined,
-      })
-      .then((p) => {
+    const agents = getAgents()
+
+    void (async () => {
+      try {
+        const p = await agents.planner.decomposeGoal({
+          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
+          category,
+          startDate: range.start!,
+          endDate: range.end!,
+          dailyHours: hours,
+          persona: chosenPersona,
+          subjects: subjects.length > 0 ? subjects : undefined,
+        })
+        if (cancelled) return
+        const planned = { ...p, persona: chosenPersona }
+
+        const missions = agents.planner.generateMissions
+          ? await agents.planner.generateMissions(planned, category)
+          : generateMissions(planned, category)
+        if (cancelled) return
+
+        setPlan(planned)
+        setDraftMissions(
+          missions.length > 0 ? missions : generateMissions(planned, category),
+        )
+      } catch (err) {
+        if (cancelled) return
+        console.warn('[PlanningPage] LLM planner failed, falling back', err)
+        const mockAgents = createMockAgents()
+        const p = await mockAgents.planner.decomposeGoal({
+          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
+          category,
+          startDate: range.start!,
+          endDate: range.end!,
+          dailyHours: hours,
+          persona: chosenPersona,
+          subjects: subjects.length > 0 ? subjects : undefined,
+        })
         if (cancelled) return
         const planned = { ...p, persona: chosenPersona }
         setPlan(planned)
         setDraftMissions(generateMissions(planned, category))
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setPlanLoading(false)
-      })
+      }
+    })()
+
     return () => {
       cancelled = true
     }
