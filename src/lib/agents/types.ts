@@ -10,6 +10,7 @@ import type {
   Goal,
   GoalCategory,
   ISODate,
+  MissionTask,
   PacelyNotification,
   Persona,
   Plan,
@@ -47,6 +48,10 @@ export interface PlannerInput {
 export interface PlannerAgent {
   /** Decompose a goal into milestones + per-day allocation. */
   decomposeGoal(input: PlannerInput): Promise<Plan>
+  /** Optional: generate the day-by-day mission breakdown for the plan.
+      LLM-backed planners override this so missions are coherent with the
+      plan's narrative; otherwise callers use the local templated fallback. */
+  generateMissions?(plan: Plan, category: GoalCategory): Promise<MissionTask[]>
 }
 
 /* --- Dialogue (§3.2) ----------------------------------------------------*/
