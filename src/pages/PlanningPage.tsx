@@ -23,6 +23,7 @@ import { BackButton } from '../components/BackButton'
 import { Button } from '../components/Button'
 import { Calendar, rangeDays, rangeIsValid } from '../components/Calendar'
 import { ChatBubble } from '../components/ChatBubble'
+import { ChatComposer } from '../components/ChatComposer'
 import { HourPicker } from '../components/HourPicker'
 import { MissionEditSheet } from '../components/MissionEditSheet'
 import { PersonaCard } from '../components/PersonaCard'
@@ -136,26 +137,8 @@ export function PlanningPage() {
   )
 
   const bodyRef = useRef<HTMLDivElement>(null)
-  const goalTextareaRef = useRef<HTMLTextAreaElement>(null)
-  const followUpTextareaRef = useRef<HTMLTextAreaElement>(null)
   const steps = useMemo(() => stepsFor(category), [category])
   const stepIndex = steps.indexOf(step)
-
-  /* Goal-input textarea autosize (height). Width is driven by the hidden
-     mirror via the .goal-input-wrap wrapper. */
-  useEffect(() => {
-    const el = goalTextareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [pendingText, step])
-
-  useEffect(() => {
-    const el = followUpTextareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [followUpPending])
 
   /* Pre-fill the calendar from the LLM's suggested days when first entering
      the period step. */
@@ -414,35 +397,25 @@ export function PlanningPage() {
             <ChatBubble from="pacely" hideAvatar>
               자유롭게 적어주세요 — 같이 다듬어볼게요.
             </ChatBubble>
-            <div className="chat-row chat-row--user">
-              <div className="goal-input-wrap">
-                <textarea
-                  ref={goalTextareaRef}
-                  className="goal-input chat-bubble chat-bubble--user"
-                  value={pendingText}
-                  placeholder="예: 2주 안에 운영체제 시험 준비하기"
-                  rows={1}
-                  autoFocus
-                  onChange={(e) => setPendingText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === 'Enter' &&
-                      !e.shiftKey &&
-                      !goalParsing &&
-                      pendingText.trim()
-                    ) {
-                      e.preventDefault()
-                      void onSubmitGoal()
-                    }
-                  }}
-                />
-                {/* Hidden mirror — drives the wrapper's width via min/max
-                    content sizing in CSS. */}
-                <span className="goal-input-mirror" aria-hidden>
-                  {pendingText || '예: 2주 안에 운영체제 시험 준비하기'}
-                </span>
+
+            {/* User's submitted goal as a right-aligned bubble. */}
+            {goalText && (
+              <div className="chat-row chat-row--user">
+                <div className="chat-bubble chat-bubble--user">{goalText}</div>
               </div>
-            </div>
+            )}
+
+            {/* Composer only when the user hasn't submitted yet. */}
+            {!goalText && !goalParsing && (
+              <ChatComposer
+                value={pendingText}
+                placeholder="예: 2주 안에 운영체제 시험 준비하기"
+                disabled={goalParsing}
+                autoFocus
+                onChange={setPendingText}
+                onSubmit={() => void onSubmitGoal()}
+              />
+            )}
 
             {goalParsing && (
               <ChatBubble from="pacely">
@@ -481,8 +454,6 @@ export function PlanningPage() {
                       {goalReaction.followUp}
                     </ChatBubble>
                     {followUpAnswer ? (
-                      /* User locked in their answer — echo it as a sent
-                         message and offer to edit. */
                       <>
                         <div className="chat-row chat-row--user">
                           <div className="chat-bubble chat-bubble--user">
@@ -500,71 +471,40 @@ export function PlanningPage() {
                         </button>
                       </>
                     ) : (
-                      <div className="chat-row chat-row--user">
-                        <div className="goal-input-wrap">
-                          <textarea
-                            ref={followUpTextareaRef}
-                            className="goal-input chat-bubble chat-bubble--user"
-                            value={followUpPending}
-                            placeholder="이렇게 답해줘…"
-                            rows={1}
-                            onChange={(e) =>
-                              setFollowUpPending(e.target.value)
-                            }
-                            onKeyDown={(e) => {
-                              if (
-                                e.key === 'Enter' &&
-                                !e.shiftKey &&
-                                followUpPending.trim()
-                              ) {
-                                e.preventDefault()
-                                onConfirmFollowUp()
-                              }
-                            }}
-                          />
-                          <span className="goal-input-mirror" aria-hidden>
-                            {followUpPending || '이렇게 답해줘…'}
-                          </span>
-                        </div>
-                      </div>
+                      <ChatComposer
+                        value={followUpPending}
+                        placeholder="이렇게 답해줘…"
+                        sendLabel="답변 보내기"
+                        onChange={setFollowUpPending}
+                        onSubmit={onConfirmFollowUp}
+                      />
                     )}
                   </>
                 )}
               </>
             )}
 
-            <div className="planning-cta planning-cta--stack">
-              {!goalReaction ? (
+            {goalReaction && (
+              <div className="planning-cta planning-cta--stack">
+                <Button block onClick={goToNext}>
+                  다음 단계로
+                </Button>
                 <Button
                   block
-                  disabled={!pendingText.trim() || goalParsing}
-                  onClick={() => void onSubmitGoal()}
+                  variant="ghost"
+                  disabled={goalParsing}
+                  onClick={() => {
+                    /* Re-submit the same text — useful if the user wants a
+                       fresh take from the model. */
+                    setGoalText('')
+                    setGoalReaction(null)
+                    setPendingText(pendingText || goalText)
+                  }}
                 >
-                  {goalParsing ? '정리 중…' : 'Pacely에게 보여주기'}
+                  다시 적기
                 </Button>
-              ) : (
-                <>
-                  {goalReaction.followUp &&
-                    !followUpAnswer &&
-                    followUpPending.trim() && (
-                      <Button block onClick={onConfirmFollowUp}>
-                        이렇게 가요
-                      </Button>
-                    )}
-                  <Button block onClick={goToNext}>
-                    다음 단계로
-                  </Button>
-                  <Button
-                    block
-                    variant="ghost"
-                    disabled={goalParsing}
-                    onClick={() => void onSubmitGoal()}
-                  >
-                    다시 정리해줘
-                  </Button>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </>
         )}
 

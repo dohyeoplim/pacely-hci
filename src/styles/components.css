@@ -245,25 +245,43 @@
   flex-shrink: 0;
 }
 
-/* --- Goal input ----------------------------------------------------------*/
-/* Wrapper sits inside chat-row--user, lays out the textarea + the hidden
-   mirror that drives its dynamic width. */
+/* --- Goal input ---------------------------------------------------------
+   Auto-size textarea (both width AND height) via the inline-grid replicated
+   value trick: a hidden ::after pseudo carries the same text as the
+   textarea, and both occupy the same grid cell. The grid cell sizes to the
+   wider of the two — so as the user types, the cell grows to fit, and the
+   textarea, which fills the cell, grows with it. */
 .goal-input-wrap {
-  position: relative;
-  display: inline-flex;
-  max-width: 78%;
+  display: inline-grid;
+  max-width: 92%;
   min-width: 80px;
+  vertical-align: top;
+}
+.goal-input-wrap::after {
+  content: attr(data-replicated-value) ' ';
+  visibility: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.goal-input-wrap > .goal-input,
+.goal-input-wrap::after {
+  grid-area: 1 / 1;
+  font: inherit;
+  letter-spacing: -0.005em;
+  /* Same metrics as .chat-bubble so the rendered bubble width matches the
+     measured replica. */
+  padding: 11px 14px;
+  border-radius: 18px;
+  line-height: 1.45;
 }
 .goal-input {
-  width: 100%;
   border: 1px solid transparent;
   resize: none;
   outline: none;
-  font: inherit;
-  letter-spacing: -0.005em;
   overflow: hidden;
-  /* Height grows with content via the autosize effect in PlanningPage.
-     Width is driven by .goal-input-wrap (which is sized from the mirror). */
+  /* cols=1 in JSX guarantees the textarea's intrinsic width is ~1ch so the
+     grid cell width is driven entirely by the ::after replica. */
 }
 .goal-input::placeholder {
   color: rgba(255, 255, 255, 0.55);
@@ -271,22 +289,6 @@
 .goal-input:focus-visible {
   outline: 1.5px solid rgba(255, 255, 255, 0.45);
   outline-offset: -1.5px;
-}
-/* Hidden mirror whose width drives the wrapper's width. Same font + padding
-   as the textarea so the measurement is pixel-accurate. */
-.goal-input-mirror {
-  position: absolute;
-  visibility: hidden;
-  pointer-events: none;
-  white-space: pre;
-  /* Match .chat-bubble padding so the measured width is what the textarea
-     will need. */
-  padding: 11px 14px;
-  font: inherit;
-  letter-spacing: -0.005em;
-  /* Top-aligned out of flow but still measurable. */
-  top: 0;
-  left: 0;
 }
 
 /* --- Calendar ------------------------------------------------------------*/
@@ -3003,4 +3005,62 @@
   background: rgba(58, 72, 192, 0.24);
   border-color: var(--navy-300);
   color: var(--text);
+}
+
+/* --- Chat composer (ChatGPT-style full-width input) ---------------------*/
+.chat-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 8px 8px 8px 14px;
+  box-shadow: 0 4px 16px rgba(5, 7, 24, 0.4);
+  margin-top: var(--sp-2);
+}
+.chat-composer__input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  outline: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  letter-spacing: -0.005em;
+  line-height: 1.45;
+  color: var(--text);
+  padding: 8px 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.chat-composer__input::placeholder {
+  color: var(--text-tertiary);
+}
+.chat-composer__send {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #3a48c0, #2030a0);
+  color: var(--text-on-primary);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast),
+    background var(--dur-fast);
+}
+.chat-composer__send:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4856d0, #2a3ab0);
+}
+.chat-composer__send:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.chat-composer__send:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
 }
