@@ -888,9 +888,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   padding: 10px 0 calc(10px + var(--safe-bottom));
-  background: rgba(11, 14, 46, 0.78);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: var(--surface);
   border-top: 1px solid var(--border-soft);
   z-index: 50;
 }
@@ -1110,7 +1108,6 @@
      still get the same Dynamic Island-sized breathing room as a real
      iPhone. 48px ≈ Dynamic Island vertical footprint. */
   padding-top: calc(max(var(--safe-top), 48px) + var(--sp-3));
-  padding-bottom: 96px;
   gap: var(--sp-6);
 }
 .home-head {
@@ -2350,7 +2347,7 @@
 /* --- Record --------------------------------------------------------------*/
 .record-page,
 .profile-page {
-  padding-bottom: 96px;
+  padding-top: calc(max(var(--safe-top), 48px) + var(--sp-3));
 }
 .record-head {
   margin-top: var(--sp-2);
@@ -2524,7 +2521,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 12px 14px 12px 0;
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--r-md);
@@ -2594,7 +2591,7 @@
 
 /* --- Week page ----------------------------------------------------------*/
 .week-page {
-  padding-bottom: 96px;
+  padding-top: calc(max(var(--safe-top), 48px) + var(--sp-3));
 }
 .week-list {
   display: flex;
