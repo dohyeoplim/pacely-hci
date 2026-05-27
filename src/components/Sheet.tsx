@@ -3,9 +3,14 @@
    Used for any modal flow that wants a clean "stay in the page" feel. Close
    on backdrop tap or the explicit close button; ESC also closes for keyboard
    users. Body scroll is locked while open. On open, focus moves into the
-   sheet; on close, focus is restored to whatever was active before. */
+   sheet; on close, focus is restored to whatever was active before.
+
+   Rendered through a React portal to document.body so it escapes the
+   route-frame's stacking context — otherwise the fixed tab bar (sibling of
+   route-frame) ends up painted on top of the sheet. */
 
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 interface SheetProps {
   open: boolean
@@ -66,7 +71,10 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
     onClose()
   }
 
-  return (
+  const target = typeof document !== 'undefined' ? document.body : null
+  if (!target) return null
+
+  return createPortal(
     <div
       className="sheet-root"
       role="dialog"
@@ -111,6 +119,7 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
         <div className="sheet__body">{children}</div>
         {footer && <div className="sheet__footer">{footer}</div>}
       </section>
-    </div>
+    </div>,
+    target,
   )
 }
