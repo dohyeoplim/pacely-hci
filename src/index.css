@@ -92,7 +92,7 @@
   --page-pad-x: 20px;
   --tabbar-height: 72px;
   --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-bottom: 0px;
 
   /* --- Motion -------------------------------------------------------------*/
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
