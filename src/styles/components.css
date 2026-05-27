@@ -1501,6 +1501,10 @@
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   padding-bottom: 4px;
+  /* <ol> default numbering — remove so day chips read cleanly. */
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
 }
 .plan-strip__day {
   flex-shrink: 0;
@@ -2935,4 +2939,38 @@
 @keyframes thinking-pulse {
   0%, 100% { opacity: 0.3; transform: scale(0.85); }
   50%      { opacity: 1;   transform: scale(1.15); }
+}
+
+/* --- Category pill switcher (shown below LLM's inferred category) -------*/
+.category-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+  margin-left: 38px; /* align under continuation bubble — past avatar gutter */
+}
+.category-pill-row > .t-micro {
+  margin-right: 4px;
+}
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-soft);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.category-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.category-pill--on {
+  background: rgba(58, 72, 192, 0.24);
+  border-color: var(--navy-300);
+  color: var(--text);
 }
