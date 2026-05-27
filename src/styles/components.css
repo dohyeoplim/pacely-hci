@@ -1098,9 +1098,10 @@
 
 /* --- Home ----------------------------------------------------------------*/
 .home-page {
-  /* safe-top covers the Dynamic Island / notch; sp-6 is the breathing
-     room between the island's bottom edge and the first content line. */
-  padding-top: calc(var(--safe-top) + var(--sp-6));
+  /* max() so the simulator and other browsers without a reported safe-area
+     still get the same Dynamic Island-sized breathing room as a real
+     iPhone. 48px ≈ Dynamic Island vertical footprint. */
+  padding-top: calc(max(var(--safe-top), 48px) + var(--sp-3));
   padding-bottom: 96px;
   gap: var(--sp-6);
 }
@@ -1973,10 +1974,11 @@
 
 /* --- Notification toast -------------------------------------------------*/
 .noti-toast {
-  /* Floating overlay so appearing/disappearing toasts never push page
-     content around. Anchored to the top of the app-shell viewport. */
+  /* Floating overlay anchored top-center of the app shell. We animate
+     opacity only — animating transform here would clobber the
+     translateX(-50%) used for centering. */
   position: fixed;
-  top: calc(var(--safe-top) + var(--sp-3));
+  top: calc(max(var(--safe-top), 48px) + var(--sp-2));
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - var(--sp-5) * 2);
@@ -1994,7 +1996,7 @@
   box-shadow: 0 12px 28px rgba(5, 7, 24, 0.55);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  animation: noti-in 360ms var(--ease-spring) both;
+  animation: noti-in 320ms var(--ease-out) both;
 }
 .noti-toast--closing {
   animation: noti-out 240ms var(--ease-out) forwards;
@@ -2034,20 +2036,11 @@
   margin-top: 2px;
 }
 @keyframes noti-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @keyframes noti-out {
-  to {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
+  to { opacity: 0; }
 }
 
 /* --- Reward tabs --------------------------------------------------------*/
