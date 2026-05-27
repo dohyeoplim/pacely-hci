@@ -5,8 +5,7 @@ export const SURVEY_URL = 'https://forms.gle/qTFTkRV6ZWeWhFuB7'
 export const DEFAULT_EXPERIMENT: Experiment = {
   participantId: '',
   group: null,
-  lab1Order: null,
-  lab2Condition: null,
+  personaOrder: null,
   rewardEnabled: true,
 }
 

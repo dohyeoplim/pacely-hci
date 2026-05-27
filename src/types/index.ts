@@ -149,14 +149,12 @@ export interface UserEvent {
   payload?: Record<string, unknown>
 }
 
-export type ExperimentGroup = 'GA' | 'GB' | 'GC'
-export type Lab1Order = 'companion-first' | 'coach-first'
-export type Lab2Condition = 'G1' | 'G2' | 'G3'
+export type ExperimentGroup = 'template' | 'pacely'
+export type PersonaOrder = 'companion-first' | 'coach-first'
 
 export interface Experiment {
   participantId: string
   group: ExperimentGroup | null
-  lab1Order: Lab1Order | null
-  lab2Condition: Lab2Condition | null
+  personaOrder: PersonaOrder | null
   rewardEnabled: boolean
 }

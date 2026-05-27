@@ -5,34 +5,35 @@ import { BackButton } from '../components/BackButton'
 import { Button } from '../components/Button'
 import { SURVEY_URL } from '../lib/experiment'
 import { usePacely } from '../lib/store/store'
-import type {
-  ExperimentGroup,
-  Lab1Order,
-  Lab2Condition,
-} from '../types'
+import type { ExperimentGroup, PersonaOrder } from '../types'
 
 const GROUPS: { value: ExperimentGroup; label: string; desc: string }[] = [
-  { value: 'GA', label: 'GA', desc: '앱 사용 X · 기본 수행률' },
-  { value: 'GB', label: 'GB', desc: 'Pacely + reward 모두 ON' },
-  { value: 'GC', label: 'GC', desc: 'Pacely 사용, reward OFF' },
+  { value: 'template', label: '템플릿', desc: '시간대 빈 템플릿만 사용' },
+  { value: 'pacely', label: 'Pacely', desc: 'Pacely AI 계획 + 동반자' },
 ]
 
-const LAB1_ORDERS: { value: Lab1Order; label: string }[] = [
+const PERSONA_ORDERS: { value: PersonaOrder; label: string }[] = [
   { value: 'companion-first', label: '동반자 → 코치' },
   { value: 'coach-first', label: '코치 → 동반자' },
 ]
 
-const LAB2_CONDITIONS: { value: Lab2Condition; label: string; desc: string }[] = [
-  { value: 'G1', label: 'G1', desc: '종이/메모 자유 방식' },
-  { value: 'G2', label: 'G2', desc: '시간대별 빈 템플릿' },
-  { value: 'G3', label: 'G3', desc: 'Pacely AI 계획 수립' },
-]
+function formatParticipantId(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 3)
+  if (!digits) return ''
+  return `P${digits.padStart(3, '0')}`
+}
 
 export function ResearchPage() {
   const navigate = useNavigate()
   const { state, setExperiment } = usePacely()
   const e = state.experiment
   const [pid, setPid] = useState(e.participantId)
+
+  const commitId = () => {
+    const formatted = formatParticipantId(pid)
+    setPid(formatted)
+    setExperiment({ participantId: formatted })
+  }
 
   return (
     <div className="page research-page">
@@ -56,19 +57,20 @@ export function ResearchPage() {
           id="pid"
           className="profile-input"
           value={pid}
-          placeholder="예: P01"
+          placeholder="예: P001"
+          inputMode="numeric"
           onChange={(ev) => setPid(ev.target.value)}
-          onBlur={() => setExperiment({ participantId: pid.trim() })}
+          onBlur={commitId}
           onKeyDown={(ev) => {
             if (ev.key === 'Enter') ev.currentTarget.blur()
           }}
         />
-        <p className="t-micro">데이터 내보낼 때 이 ID로 익명화돼요.</p>
+        <p className="t-micro">세 자리 숫자로 자동 채워져요 (예: 3 → P003).</p>
       </section>
 
       <section className="research-section">
-        <div className="profile-label t-caption">LAB3 그룹</div>
-        <div className="research-grid">
+        <div className="profile-label t-caption">참가 그룹</div>
+        <div className="research-row">
           {GROUPS.map((g) => (
             <button
               key={g.value}
@@ -76,7 +78,7 @@ export function ResearchPage() {
               onClick={() =>
                 setExperiment({
                   group: g.value,
-                  rewardEnabled: g.value !== 'GC',
+                  rewardEnabled: g.value === 'pacely',
                 })
               }
             >
@@ -88,31 +90,15 @@ export function ResearchPage() {
       </section>
 
       <section className="research-section">
-        <div className="profile-label t-caption">LAB1 페르소나 체험 순서</div>
+        <div className="profile-label t-caption">페르소나 체험 순서</div>
         <div className="research-row">
-          {LAB1_ORDERS.map((o) => (
+          {PERSONA_ORDERS.map((o) => (
             <button
               key={o.value}
-              className={`research-pill ${e.lab1Order === o.value ? 'research-pill--on' : ''}`}
-              onClick={() => setExperiment({ lab1Order: o.value })}
+              className={`research-pill ${e.personaOrder === o.value ? 'research-pill--on' : ''}`}
+              onClick={() => setExperiment({ personaOrder: o.value })}
             >
               {o.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="research-section">
-        <div className="profile-label t-caption">LAB2 계획 조건</div>
-        <div className="research-grid">
-          {LAB2_CONDITIONS.map((c) => (
-            <button
-              key={c.value}
-              className={`research-chip ${e.lab2Condition === c.value ? 'research-chip--on' : ''}`}
-              onClick={() => setExperiment({ lab2Condition: c.value })}
-            >
-              <div className="research-chip__label">{c.label}</div>
-              <div className="research-chip__desc">{c.desc}</div>
             </button>
           ))}
         </div>
@@ -123,7 +109,7 @@ export function ResearchPage() {
           <div>
             <div className="t-body-strong">Reward 기능 노출</div>
             <div className="t-caption">
-              꺼두면 보상 화면 / 탭 모두 숨겨요 (GC 그룹 자동 OFF).
+              꺼두면 보상 화면 / 탭 모두 숨겨요.
             </div>
           </div>
           <input
@@ -152,8 +138,7 @@ export function ResearchPage() {
               setExperiment({
                 participantId: '',
                 group: null,
-                lab1Order: null,
-                lab2Condition: null,
+                personaOrder: null,
                 rewardEnabled: true,
               })
             }}
