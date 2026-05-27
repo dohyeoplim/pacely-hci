@@ -1,10 +1,3 @@
-/* Pacely LLM proxy — Vercel Edge function.
-
-   Edge runtime keeps cold starts near-zero and bumps the Hobby-tier
-   timeout to 25s, which fits the plan-generation calls comfortably. The
-   OpenAI Node SDK isn't used; we just POST directly to OpenAI's REST
-   endpoint with the server-side key. */
-
 type Role = 'system' | 'user' | 'assistant'
 
 interface ChatMessage {
@@ -54,8 +47,6 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'messages must be a non-empty array' }, 400)
   }
 
-  /* Construct the upstream request body. OpenAI's REST schema is identical
-     to what the SDK produces, so we just pass through. */
   const upstream = {
     model: body.model ?? DEFAULT_MODEL,
     messages: body.messages,
@@ -96,8 +87,6 @@ export default async function handler(req: Request): Promise<Response> {
   }
 }
 
-/* Edge runtime + Hobby-tier 25s allowance keeps plan generation safe
-   without bumping to Pro. */
 export const config = {
   runtime: 'edge',
 }
