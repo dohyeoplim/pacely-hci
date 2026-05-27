@@ -11,28 +11,21 @@ import { MissionEditSheet } from '../components/MissionEditSheet'
 import { PersonaCard } from '../components/PersonaCard'
 import { PlanCard } from '../components/PlanCard'
 import { PlanDailyStrip } from '../components/PlanDailyStrip'
+import { PlanLoading } from '../components/PlanLoading'
 import { PlanReviseSheet } from '../components/PlanReviseSheet'
-import { SubjectInput } from '../components/SubjectInput'
 import { createMockAgents, getAgents } from '../lib/agents'
 import { generateMissions } from '../lib/store/missions'
 import { usePacely } from '../lib/store/store'
 import { addDays, todayISO, uid } from '../lib/util'
 import type { GoalCategory, MissionTask, Persona, Plan } from '../types'
 
-type Step = 'goal' | 'subjects' | 'period' | 'hours' | 'persona' | 'plan'
+type Step = 'goal' | 'period' | 'hours' | 'persona' | 'plan'
 
-const ALL_STEPS: Step[] = ['goal', 'subjects', 'period', 'hours', 'persona', 'plan']
-
-function stepsFor(category: GoalCategory | null): Step[] {
-  if (!category) return ['goal']
-  return ALL_STEPS.filter(
-    (s) => s !== 'subjects' || category === 'exam' || category === 'project',
-  )
-}
+const ALL_STEPS: Step[] = ['goal', 'period', 'hours', 'persona', 'plan']
 
 const CATEGORY_DEFAULT_TITLE: Record<GoalCategory, string> = {
-  exam: '시험 대비하기',
-  project: '새 프로젝트',
+  exam: '시험 대비',
+  project: '프로젝트',
   workout: '운동 루틴',
   diary: '일기 습관',
   custom: '나만의 목표',
@@ -67,24 +60,10 @@ const PLAN_INTRO_BY_PERSONA: Record<Persona, [string, string, string]> = {
   ],
 }
 
-function deriveTitle(text: string, fallback: string): string {
-  const trimmed = text.replace(/\s+/g, ' ').trim()
-  if (!trimmed) return fallback
-  const cut = trimmed.split(/[,.!?\n]|할거야|하고\s*싶|준비/)[0].trim()
-  const base = cut.length > 0 ? cut : trimmed
-  const shortened = base.length > 16 ? base.slice(0, 16) + '…' : base
-  return shortened.endsWith('하기') ? shortened : `${shortened} 대비하기`
-}
-
 interface DraftMissionSheet {
   mode: 'add' | 'edit'
   mission?: MissionTask
   date?: string
-}
-
-interface GoalReaction {
-  greeting: string
-  followUp?: string
 }
 
 export function PlanningPage() {
@@ -96,6 +75,7 @@ export function PlanningPage() {
   const [category, setCategory] = useState<GoalCategory | null>(null)
   const [subjects, setSubjects] = useState<string[]>([])
   const [goalText, setGoalText] = useState<string>('')
+  const [shortTitle, setShortTitle] = useState<string>('')
   const [pendingText, setPendingText] = useState<string>('')
   const [range, setRange] = useState<{ start?: string; end?: string }>({})
   const [hours, setHours] = useState<number>(3)
@@ -103,11 +83,13 @@ export function PlanningPage() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [planLoading, setPlanLoading] = useState(false)
 
-  const [goalReaction, setGoalReaction] = useState<GoalReaction | null>(null)
+  const [greeting, setGreeting] = useState<string | null>(null)
   const [goalParsing, setGoalParsing] = useState(false)
   const [suggestedDays, setSuggestedDays] = useState<number | null>(null)
-  const [followUpPending, setFollowUpPending] = useState('')
-  const [followUpAnswer, setFollowUpAnswer] = useState<string | null>(null)
+  const [suggestedStartDate, setSuggestedStartDate] = useState<string | null>(
+    null,
+  )
+  const [suggestedEndDate, setSuggestedEndDate] = useState<string | null>(null)
 
   const [draftMissions, setDraftMissions] = useState<MissionTask[]>([])
   const [reviseOpen, setReviseOpen] = useState(false)
@@ -116,21 +98,25 @@ export function PlanningPage() {
   )
 
   const bodyRef = useRef<HTMLDivElement>(null)
-  const steps = useMemo(() => stepsFor(category), [category])
-  const stepIndex = steps.indexOf(step)
+  const stepIndex = ALL_STEPS.indexOf(step)
 
   useEffect(() => {
     if (step !== 'period') return
     if (range.start) return
+    if (suggestedStartDate && suggestedEndDate) {
+      setRange({ start: suggestedStartDate, end: suggestedEndDate })
+      return
+    }
     const days = suggestedDays ?? 14
     const offset = Math.max(0, days - 1)
     setRange({ start: todayISO(), end: addDays(todayISO(), offset) })
-  }, [step, range.start, suggestedDays])
+  }, [step, range.start, suggestedDays, suggestedStartDate, suggestedEndDate])
 
   const title = useMemo(() => {
+    if (shortTitle) return shortTitle
     if (!category) return 'Pacely와 목표를 정해봐요.'
-    return deriveTitle(goalText, CATEGORY_DEFAULT_TITLE[category])
-  }, [category, goalText])
+    return CATEGORY_DEFAULT_TITLE[category]
+  }, [shortTitle, category])
 
   useEffect(() => {
     if (step !== 'plan' || plan || !category || !range.start || !range.end) return
@@ -141,7 +127,7 @@ export function PlanningPage() {
     void (async () => {
       try {
         const p = await agents.planner.decomposeGoal({
-          goalText: enrichedGoalText || CATEGORY_DEFAULT_TITLE[category],
+          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
           category,
           startDate: range.start!,
           endDate: range.end!,
@@ -164,7 +150,7 @@ export function PlanningPage() {
         console.warn('[PlanningPage] LLM planner failed, falling back', err)
         const mockAgents = createMockAgents()
         const p = await mockAgents.planner.decomposeGoal({
-          goalText: enrichedGoalText || CATEGORY_DEFAULT_TITLE[category],
+          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
           category,
           startDate: range.start!,
           endDate: range.end!,
@@ -184,44 +170,27 @@ export function PlanningPage() {
     return () => {
       cancelled = true
     }
-  }, [
-    step,
-    plan,
-    category,
-    goalText,
-    followUpAnswer,
-    range,
-    hours,
-    chosenPersona,
-    subjects,
-  ])
+  }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
 
   const goToNext = () => {
-    const i = steps.indexOf(step)
-    if (i < 0 || i === steps.length - 1) return
-    setStep(steps[i + 1])
+    const i = ALL_STEPS.indexOf(step)
+    if (i < 0 || i === ALL_STEPS.length - 1) return
+    setStep(ALL_STEPS[i + 1])
   }
   const goToPrev = () => {
-    const i = steps.indexOf(step)
+    const i = ALL_STEPS.indexOf(step)
     if (i <= 0) return
     if (step === 'plan') {
       setPlan(null)
       setDraftMissions([])
     }
-    setStep(steps[i - 1])
+    setStep(ALL_STEPS[i - 1])
   }
-
-  const enrichedGoalText = useMemo(() => {
-    if (!followUpAnswer) return goalText
-    return `${goalText}\n\n[추가 정보] ${followUpAnswer}`
-  }, [goalText, followUpAnswer])
 
   const onSubmitGoal = async () => {
     const text = pendingText.trim()
     if (!text) return
     setGoalText(text)
-    setFollowUpAnswer(null)
-    setFollowUpPending('')
     setGoalParsing(true)
     try {
       const agent = getAgents().planner
@@ -232,8 +201,11 @@ export function PlanningPage() {
             persona: chosenPersona,
           })
       setCategory(result.category)
-      setGoalReaction({ greeting: result.greeting, followUp: result.followUp })
+      setShortTitle(result.shortTitle)
+      setGreeting(result.greeting)
       setSuggestedDays(result.suggestedDays)
+      setSuggestedStartDate(result.suggestedStartDate ?? null)
+      setSuggestedEndDate(result.suggestedEndDate ?? null)
       if (
         (result.category === 'exam' || result.category === 'project') &&
         result.suggestedSubjects.length > 0
@@ -245,22 +217,16 @@ export function PlanningPage() {
     } catch (err) {
       console.warn('[PlanningPage] parseGoal failed', err)
       setCategory('custom')
-      setGoalReaction({
-        greeting:
-          chosenPersona === 'gentle'
-            ? '좋은 목표예요. 같이 잘 짜봐요.'
-            : '좋습니다. 계획부터 정확히 잡겠습니다.',
-      })
+      setShortTitle(text.slice(0, 16))
+      setGreeting(
+        chosenPersona === 'gentle'
+          ? '좋은 목표예요. 같이 잘 짜봐요.'
+          : '좋습니다. 계획부터 정확히 잡겠습니다.',
+      )
       setSuggestedDays(14)
     } finally {
       setGoalParsing(false)
     }
-  }
-
-  const onConfirmFollowUp = () => {
-    const ans = followUpPending.trim()
-    if (!ans) return
-    setFollowUpAnswer(ans)
   }
 
   const onSwitchCategory = (next: GoalCategory) => {
@@ -337,7 +303,7 @@ export function PlanningPage() {
       <header className="planning-header">
         <BackButton onClick={onBack} />
         <div className="planning-progress" aria-hidden>
-          {steps.map((s, i) => (
+          {ALL_STEPS.map((s, i) => (
             <span
               key={s}
               className={`planning-progress__dot ${i <= stepIndex ? 'planning-progress__dot--on' : ''}`}
@@ -383,9 +349,9 @@ export function PlanningPage() {
               </ChatBubble>
             )}
 
-            {!goalParsing && goalReaction && (
+            {!goalParsing && greeting && (
               <>
-                <ChatBubble from="pacely">{goalReaction.greeting}</ChatBubble>
+                <ChatBubble from="pacely">{greeting}</ChatBubble>
                 {category && (
                   <div className="category-pill-row">
                     <span className="t-micro">분류</span>
@@ -405,44 +371,10 @@ export function PlanningPage() {
                     ))}
                   </div>
                 )}
-
-                {goalReaction.followUp && (
-                  <>
-                    <ChatBubble from="pacely" hideAvatar>
-                      {goalReaction.followUp}
-                    </ChatBubble>
-                    {followUpAnswer ? (
-                      <>
-                        <div className="chat-row chat-row--user">
-                          <div className="chat-bubble chat-bubble--user">
-                            {followUpAnswer}
-                          </div>
-                        </div>
-                        <button
-                          className="link-button"
-                          onClick={() => {
-                            setFollowUpAnswer(null)
-                            setFollowUpPending('')
-                          }}
-                        >
-                          답변 다시 적기
-                        </button>
-                      </>
-                    ) : (
-                      <ChatComposer
-                        value={followUpPending}
-                        placeholder="이렇게 답해줘…"
-                        sendLabel="답변 보내기"
-                        onChange={setFollowUpPending}
-                        onSubmit={onConfirmFollowUp}
-                      />
-                    )}
-                  </>
-                )}
               </>
             )}
 
-            {goalReaction && (
+            {greeting && (
               <div className="planning-cta planning-cta--stack">
                 <Button block onClick={goToNext}>
                   다음 단계로
@@ -453,7 +385,8 @@ export function PlanningPage() {
                   disabled={goalParsing}
                   onClick={() => {
                     setGoalText('')
-                    setGoalReaction(null)
+                    setGreeting(null)
+                    setShortTitle('')
                     setPendingText(pendingText || goalText)
                   }}
                 >
@@ -464,58 +397,19 @@ export function PlanningPage() {
           </>
         )}
 
-        {step === 'subjects' && category && (
-          <>
-            <ChatBubble from="pacely">
-              {category === 'exam'
-                ? '어떤 과목들을 다룰까요?'
-                : '어떤 단계로 진행해볼까요?'}
-            </ChatBubble>
-            {subjects.length > 0 && (
-              <ChatBubble from="pacely" hideAvatar>
-                제가 이렇게 정리해봤어요. 필요하면 바꿔도 좋아요.
-              </ChatBubble>
-            )}
-            <SubjectInput
-              value={subjects}
-              onChange={setSubjects}
-              suggestions={SUBJECT_SUGGESTIONS[category]}
-              placeholder={
-                category === 'exam'
-                  ? '예: 선형대수, 확률통계'
-                  : '예: 리서치, 구현, QA'
-              }
-            />
-            <div className="planning-cta planning-cta--stack">
-              <Button
-                block
-                disabled={subjects.length === 0}
-                onClick={goToNext}
-              >
-                {subjects.length}개로 계속하기
-              </Button>
-              <Button block variant="ghost" onClick={goToNext}>
-                건너뛰기
-              </Button>
-            </div>
-          </>
-        )}
-
         {step === 'period' && category && (
           <>
             <ChatBubble from="pacely">
-              {suggestedDays
-                ? `목표를 보니 ${suggestedDays}일 정도면 충분해 보여요.`
-                : '언제부터 언제까지 같이 갈까요?'}
+              {suggestedStartDate && suggestedEndDate
+                ? `${suggestedStartDate} ~ ${suggestedEndDate} 일정으로 잡아봤어요.`
+                : suggestedDays
+                  ? `목표를 보니 ${suggestedDays}일 정도면 충분해 보여요.`
+                  : '언제부터 언제까지 같이 갈까요?'}
             </ChatBubble>
             <ChatBubble from="pacely" hideAvatar>
               날짜는 자유롭게 바꿔도 돼요. 하루짜리도 가능해요.
             </ChatBubble>
-            <Calendar
-              value={range}
-              onChange={setRange}
-              minDate={todayISO()}
-            />
+            <Calendar value={range} onChange={setRange} minDate={todayISO()} />
             {rangeIsValid(range) && (
               <ChatBubble from="pacely" hideAvatar>
                 {rangeDays(range.start!, range.end!) === 1
@@ -524,11 +418,7 @@ export function PlanningPage() {
               </ChatBubble>
             )}
             <div className="planning-cta">
-              <Button
-                block
-                disabled={!rangeIsValid(range)}
-                onClick={goToNext}
-              >
+              <Button block disabled={!rangeIsValid(range)} onClick={goToNext}>
                 다음
               </Button>
             </div>
@@ -542,7 +432,7 @@ export function PlanningPage() {
             </ChatBubble>
             {subjects.length > 0 && (
               <ChatBubble from="pacely" hideAvatar>
-                {subjects.length}개로 나누면 한 주제당 약 {' '}
+                {subjects.length}개로 나누면 한 주제당 약{' '}
                 {Math.round((hours * 60) / subjects.length)}분이에요.
               </ChatBubble>
             )}
@@ -586,9 +476,7 @@ export function PlanningPage() {
               {PLAN_INTRO_BY_PERSONA[chosenPersona][0]}
             </ChatBubble>
             {planLoading || !plan ? (
-              <div className="plan-loading t-caption">
-                플랜을 그리는 중이에요…
-              </div>
+              <PlanLoading />
             ) : (
               <>
                 <ChatBubble from="pacely" hideAvatar>
@@ -601,9 +489,7 @@ export function PlanningPage() {
                 <PlanDailyStrip
                   plan={plan}
                   missions={draftMissions}
-                  onPickDay={(date) =>
-                    setMissionSheet({ mode: 'add', date })
-                  }
+                  onPickDay={(date) => setMissionSheet({ mode: 'add', date })}
                 />
                 <ChatBubble from="pacely" hideAvatar>
                   {PLAN_INTRO_BY_PERSONA[chosenPersona][2]}
