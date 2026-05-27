@@ -121,7 +121,7 @@ export function WeekPage() {
       <MissionEditSheet
         open={!!sheet}
         mode={sheet?.mode ?? 'add'}
-        goal={currentGoal}
+        plan={currentGoal.plan}
         mission={sheet?.mission}
         defaultDate={activeDate ?? today}
         onSave={(input) => {

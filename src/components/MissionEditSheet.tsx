@@ -7,14 +7,15 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from './Button'
 import { Sheet } from './Sheet'
-import type { Goal, MissionTask } from '../types'
+import type { MissionTask, Plan } from '../types'
 import { fromISO } from '../lib/util'
 
 interface MissionEditSheetProps {
   open: boolean
   mode: 'add' | 'edit'
-  /** the goal whose missions we're editing — provides date bounds */
-  goal: Goal
+  /** Plan that owns the missions — provides date chip options. Works for
+      both live goals (goal.plan) and draft plans on the planning screen. */
+  plan: Plan
   /** prefilled date (for "add") OR the mission being edited */
   defaultDate?: string
   mission?: MissionTask
@@ -36,7 +37,7 @@ const STEP = 15
 export function MissionEditSheet({
   open,
   mode,
-  goal,
+  plan,
   defaultDate,
   mission,
   onSave,
@@ -46,7 +47,7 @@ export function MissionEditSheet({
   const [title, setTitle] = useState(mission?.title ?? '')
   const [minutes, setMinutes] = useState(mission?.estimatedMinutes ?? 60)
   const [date, setDate] = useState(
-    mission?.date ?? defaultDate ?? goal.plan.dailyAllocation[0]?.date ?? '',
+    mission?.date ?? defaultDate ?? plan.dailyAllocation[0]?.date ?? '',
   )
 
   // Reset state whenever the sheet opens with new inputs.
@@ -55,13 +56,13 @@ export function MissionEditSheet({
     setTitle(mission?.title ?? '')
     setMinutes(mission?.estimatedMinutes ?? 60)
     setDate(
-      mission?.date ?? defaultDate ?? goal.plan.dailyAllocation[0]?.date ?? '',
+      mission?.date ?? defaultDate ?? plan.dailyAllocation[0]?.date ?? '',
     )
-  }, [open, mission, defaultDate, goal])
+  }, [open, mission, defaultDate, plan])
 
   const dateOptions = useMemo(
-    () => goal.plan.dailyAllocation.map((d) => d.date),
-    [goal],
+    () => plan.dailyAllocation.map((d) => d.date),
+    [plan],
   )
 
   const canSave = title.trim().length > 0 && date && minutes > 0

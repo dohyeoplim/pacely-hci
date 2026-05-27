@@ -114,7 +114,7 @@ export function DayStartPage() {
       <MissionEditSheet
         open={!!sheet}
         mode={sheet?.mode ?? 'add'}
-        goal={currentGoal}
+        plan={currentGoal.plan}
         mission={sheet?.mission}
         defaultDate={today}
         onSave={(input) => {

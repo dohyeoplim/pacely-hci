@@ -9,6 +9,7 @@ import { HomeStats } from '../components/HomeStats'
 import { MissionEditSheet } from '../components/MissionEditSheet'
 import { MissionList } from '../components/MissionList'
 import { NotificationToast } from '../components/NotificationToast'
+import { PacelyCoachCard } from '../components/PacelyCoachCard'
 import { PwaPrompts } from '../components/PwaPrompts'
 import { ProgressRing } from '../components/ProgressRing'
 import { usePacely } from '../lib/store/store'
@@ -136,6 +137,11 @@ export function HomePage() {
         totalHours={currentGoal.progress.totalHours}
       />
 
+      <PacelyCoachCard
+        goal={currentGoal}
+        persona={state.user.personaPreference}
+      />
+
       <section className="home-rings">
         <ProgressRing
           value={pace.userPct}
@@ -211,7 +217,7 @@ export function HomePage() {
       <MissionEditSheet
         open={!!sheet}
         mode={sheet?.mode ?? 'add'}
-        goal={currentGoal}
+        plan={currentGoal.plan}
         mission={sheet?.mission}
         defaultDate={today}
         onSave={(input) => {

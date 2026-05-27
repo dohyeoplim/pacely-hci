@@ -299,11 +299,14 @@ interface PacelyContextValue {
   setPersona: (persona: Persona) => void
   /** Persist the user's display name. */
   setName: (name: string) => void
-  /** Create a goal from a finalized Plan + metadata. */
+  /** Create a goal from a finalized Plan + metadata. If `missions` is
+      supplied (e.g. user-edited draft missions on the planning step), it is
+      used verbatim instead of regenerating from templates. */
   createGoal: (input: {
     title: string
     category: GoalCategory
     plan: Plan
+    missions?: MissionTask[]
   }) => Goal
   /** Install a fully-built goal (used by the demo seed). */
   installGoal: (goal: Goal) => void
@@ -442,7 +445,7 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       setPersona: (persona) => dispatch({ type: 'SET_PERSONA', persona }),
       setName: (name) => dispatch({ type: 'SET_NAME', name }),
 
-      createGoal: ({ title, category, plan }) => {
+      createGoal: ({ title, category, plan, missions }) => {
         const goal: Goal = {
           id: uid('goal'),
           title,
@@ -450,7 +453,7 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
           startDate: plan.period.startDate,
           endDate: plan.period.endDate,
           plan,
-          missions: generateMissions(plan, category),
+          missions: missions ?? generateMissions(plan, category),
           progress: emptyProgress(),
           status: 'active',
           createdAt: Date.now(),
