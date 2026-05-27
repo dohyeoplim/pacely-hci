@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 
 import { DDayBadge } from '../components/DDayBadge'
-import { HomeStats } from '../components/HomeStats'
 import { MissionEditSheet } from '../components/MissionEditSheet'
 import { MissionList } from '../components/MissionList'
 import { NotificationToast } from '../components/NotificationToast'
@@ -10,7 +9,7 @@ import { PacelyCoachCard } from '../components/PacelyCoachCard'
 import { PwaPrompts } from '../components/PwaPrompts'
 import { ProgressRing } from '../components/ProgressRing'
 import { usePacely } from '../lib/store/store'
-import { dDay, fromISO, timeOfDay, todayISO } from '../lib/util'
+import { dDay, formatHours, fromISO, timeOfDay, todayISO } from '../lib/util'
 import type { MissionTask } from '../types'
 import pacelySymbol from '../assets/pacely-symbol.svg'
 
@@ -117,27 +116,29 @@ export function HomePage() {
       </header>
 
       <button
-        className="home-goal home-goal--tappable"
+        className="home-hero"
         onClick={() => navigate('/plan')}
+        aria-label="전체 플랜 보기"
       >
-        <div className="home-goal__row">
+        <div className="home-hero__row">
           <span className="t-caption">수행 중인 목표</span>
           <DDayBadge days={remaining} />
         </div>
-        <div className="home-goal__title">{currentGoal.title}</div>
-        <div className="home-goal__hint t-micro">탭해서 전체 플랜 보기 →</div>
+        <div className="home-hero__title">{currentGoal.title}</div>
+        <div className="home-hero__meta">
+          <span className="home-hero__stat">
+            <span aria-hidden>🔥</span>
+            {currentGoal.progress.currentStreak > 0
+              ? `${currentGoal.progress.currentStreak}일 연속`
+              : '오늘부터 시작'}
+          </span>
+          <span className="home-hero__divider" aria-hidden />
+          <span className="home-hero__stat">
+            <span aria-hidden>⏱️</span>
+            {formatHours(currentGoal.progress.totalHours)} 누적
+          </span>
+        </div>
       </button>
-
-      <HomeStats
-        streak={currentGoal.progress.currentStreak}
-        bestStreak={currentGoal.progress.bestStreak}
-        totalHours={currentGoal.progress.totalHours}
-      />
-
-      <PacelyCoachCard
-        goal={currentGoal}
-        persona={state.user.personaPreference}
-      />
 
       <section className="home-rings">
         <ProgressRing
@@ -179,6 +180,11 @@ export function HomePage() {
           <span>작업 추가</span>
         </button>
       </section>
+
+      <PacelyCoachCard
+        goal={currentGoal}
+        persona={state.user.personaPreference}
+      />
 
       {allDone ? (
         <section className="home-status home-status--done">
