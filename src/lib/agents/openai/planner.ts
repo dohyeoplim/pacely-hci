@@ -91,6 +91,7 @@ ${plan.dailyAllocation
 }
 
 interface RawParseGoal {
+  category?: string
   greeting: string
   suggestedSubjects?: string[]
   suggestedDays?: number
@@ -99,14 +100,15 @@ interface RawParseGoal {
 
 function parseGoalSystem(): string {
   return `너는 Pacely라는 한국어 AI 페이스메이커. 사용자가 자유롭게 적은 목표 문장을 받아서:
-1. 따뜻하거나 단호한 한 줄 응답 (페르소나 반영, 60자 이내)
-2. 그 목표에 적합한 주제 / 단계 3~5개 (제공된 카테고리 기반)
-3. 추천 기간 (일 단위, 1~90 범위)
-4. 다음 단계로 넘어가도록 권유하는 짧은 follow-up 한 줄 (선택)
-를 JSON으로 반환해.
+1. 카테고리 분류 — 다음 중 하나: "exam" (시험/공부/자격증/학점), "project" (개발/디자인/기획/포트폴리오), "workout" (운동/체력/다이어트), "diary" (일기/회고/기록), "custom" (위에 안 맞으면)
+2. 따뜻하거나 단호한 한 줄 응답 (페르소나 반영, 60자 이내, 사용자의 목표를 짧게 인용하면 더 좋음)
+3. 그 목표에 적합한 주제 / 단계 3~5개 (exam/project일 때만; 그 외는 빈 배열)
+4. 추천 기간 (일 단위, 1~90 범위) — 사용자 문장에 기간 단서 있으면 우선 반영
+5. 다음 단계로 권유하는 짧은 follow-up 한 줄 (선택)
 
 스키마:
 {
+  "category": "exam" | "project" | "workout" | "diary" | "custom",
   "greeting": string,
   "suggestedSubjects": string[],
   "suggestedDays": number,
@@ -114,17 +116,32 @@ function parseGoalSystem(): string {
 }
 
 규칙:
-- greeting은 사용자의 목표를 짧게 인용/요약하면서 격려.
-- workout / diary / custom 카테고리는 suggestedSubjects를 빈 배열로.
-- 사용자 텍스트에 기간 단서가 있으면 (예: "2주 안에", "한 달 동안") 그걸 우선 반영.
 - 페르소나 gentle = "~요" 체, 격려. strict = "~합시다" / "~하세요", 단호.
 - JSON만 반환. 마크다운, 설명 금지.`
 }
 
 function parseGoalUserPrompt(input: ParseGoalInput): string {
-  return `카테고리: ${input.category}
-페르소나: ${input.persona}
+  return `페르소나: ${input.persona}
+${input.category ? `(힌트 — 사용자가 미리 고른 카테고리: ${input.category})` : ''}
 사용자 목표 문장: "${input.goalText}"`
+}
+
+const VALID_CATEGORIES: ReadonlyArray<GoalCategory> = [
+  'exam',
+  'project',
+  'workout',
+  'diary',
+  'custom',
+]
+
+function clampCategory(
+  value: string | undefined,
+  fallback: GoalCategory,
+): GoalCategory {
+  if (value && (VALID_CATEGORIES as readonly string[]).includes(value)) {
+    return value as GoalCategory
+  }
+  return fallback
 }
 
 const FALLBACK_DAYS: Record<GoalCategory, number> = {
@@ -148,9 +165,10 @@ export class OpenAIPlanner implements PlannerAgent {
         temperature: 0.7,
       })
       const parsed = parseJsonResponse<RawParseGoal>(raw)
-      const supportsSubjects =
-        input.category === 'exam' || input.category === 'project'
+      const category = clampCategory(parsed.category, input.category ?? 'custom')
+      const supportsSubjects = category === 'exam' || category === 'project'
       return {
+        category,
         greeting:
           (parsed.greeting ?? '').trim() ||
           '좋은 목표예요. 같이 잘 짜봐요.',
@@ -161,7 +179,7 @@ export class OpenAIPlanner implements PlannerAgent {
           parsed.suggestedDays,
           1,
           90,
-          FALLBACK_DAYS[input.category],
+          FALLBACK_DAYS[category],
         ),
         followUp:
           parsed.followUp && parsed.followUp.trim().length > 0
@@ -170,13 +188,15 @@ export class OpenAIPlanner implements PlannerAgent {
       }
     } catch (err) {
       console.warn('[OpenAIPlanner] parseGoal failed, using fallback', err)
+      const fallback: GoalCategory = input.category ?? 'custom'
       return {
+        category: fallback,
         greeting:
           input.persona === 'gentle'
             ? '좋은 목표예요. 같이 잘 짜봐요.'
             : '좋습니다. 바로 계획에 들어갑시다.',
         suggestedSubjects: [],
-        suggestedDays: FALLBACK_DAYS[input.category],
+        suggestedDays: FALLBACK_DAYS[fallback],
       }
     }
   }

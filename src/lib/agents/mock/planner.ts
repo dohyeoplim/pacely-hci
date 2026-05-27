@@ -155,17 +155,28 @@ function pickFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+/** Tiny keyword classifier used when the caller hasn't pre-selected a
+   category. Covers the obvious Korean goal-statement patterns. */
+function inferCategory(text: string): GoalCategory {
+  const t = text.toLowerCase()
+  if (/(시험|기말|중간|자격증|토익|토플|학점|공부)/.test(t)) return 'exam'
+  if (/(프로젝트|개발|디자인|기획|구현|런칭|발표|포트폴리오)/.test(t)) return 'project'
+  if (/(운동|헬스|러닝|요가|필라테스|체력|다이어트)/.test(t)) return 'workout'
+  if (/(일기|기록|회고|저널|감정)/.test(t)) return 'diary'
+  return 'custom'
+}
+
 export class MockPlanner implements PlannerAgent {
   async parseGoal(input: ParseGoalInput): Promise<ParseGoalResult> {
     await delay(280 + Math.random() * 320)
-    const greeting = pickFrom(
-      GREETING_BY_PERSONA[input.persona][input.category],
-    )
+    const category = input.category ?? inferCategory(input.goalText)
+    const greeting = pickFrom(GREETING_BY_PERSONA[input.persona][category])
     return {
+      category,
       greeting,
-      suggestedSubjects: DEFAULT_SUBJECTS[input.category],
-      suggestedDays: DEFAULT_DAYS[input.category],
-      followUp: FOLLOW_UP_BY_CATEGORY[input.category],
+      suggestedSubjects: DEFAULT_SUBJECTS[category],
+      suggestedDays: DEFAULT_DAYS[category],
+      followUp: FOLLOW_UP_BY_CATEGORY[category],
     }
   }
 

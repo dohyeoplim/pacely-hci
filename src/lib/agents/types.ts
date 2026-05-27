@@ -47,11 +47,16 @@ export interface PlannerInput {
 
 export interface ParseGoalInput {
   goalText: string
-  category: GoalCategory
+  /** When the caller already knows the category (e.g. user picked a card),
+      pass it so the LLM doesn't have to infer. Optional. */
+  category?: GoalCategory
   persona: Persona
 }
 
 export interface ParseGoalResult {
+  /** Inferred (or echoed-back) category. The flow uses the first goal-text
+      step as the entry point, so the LLM is responsible for classifying. */
+  category: GoalCategory
   /** A short, companion-toned response shown back to the user in chat. */
   greeting: string
   /** Suggested subjects / phases when the category supports them. Empty
