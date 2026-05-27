@@ -137,25 +137,30 @@
 /* --- Chat ---------------------------------------------------------------*/
 .chat-row {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
   margin-bottom: var(--sp-3);
   animation: bubble-in 280ms var(--ease-out) both;
 }
+/* Pacely block stacks vertically — avatar on top, bubble below, left
+   aligned. Consecutive bubbles from the same sender just append below at
+   the same x position. */
 .chat-row--pacely {
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.chat-row__avatar {
+  display: inline-flex;
 }
 .chat-row--user {
   justify-content: flex-end;
+  align-items: flex-end;
 }
-/* Continuation bubbles tuck up under the previous one with a tighter top
-   gap and no avatar gutter, so consecutive Pacely lines read as one
-   thought. */
 .chat-row--pacely.chat-row--continuation {
-  margin-top: -4px;
+  margin-top: -6px;
   margin-bottom: var(--sp-2);
 }
 .chat-bubble {
+  /* User bubble caps at 78%; Pacely overrides with a wider cap below. */
   max-width: 78%;
   padding: 11px 14px;
   border-radius: 18px;
@@ -166,6 +171,7 @@
   overflow-wrap: anywhere;
 }
 .chat-bubble--pacely {
+  max-width: 92%;
   background: var(--surface-raised);
   color: var(--text);
   border-top-left-radius: 6px;
@@ -240,16 +246,24 @@
 }
 
 /* --- Goal input ----------------------------------------------------------*/
+/* Wrapper sits inside chat-row--user, lays out the textarea + the hidden
+   mirror that drives its dynamic width. */
+.goal-input-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 78%;
+  min-width: 80px;
+}
 .goal-input {
+  width: 100%;
   border: 1px solid transparent;
   resize: none;
-  width: 78%;
-  max-width: 78%;
   outline: none;
   font: inherit;
   letter-spacing: -0.005em;
   overflow: hidden;
-  /* Height grows with content via the autosize effect in PlanningPage. */
+  /* Height grows with content via the autosize effect in PlanningPage.
+     Width is driven by .goal-input-wrap (which is sized from the mirror). */
 }
 .goal-input::placeholder {
   color: rgba(255, 255, 255, 0.55);
@@ -257,6 +271,22 @@
 .goal-input:focus-visible {
   outline: 1.5px solid rgba(255, 255, 255, 0.45);
   outline-offset: -1.5px;
+}
+/* Hidden mirror whose width drives the wrapper's width. Same font + padding
+   as the textarea so the measurement is pixel-accurate. */
+.goal-input-mirror {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre;
+  /* Match .chat-bubble padding so the measured width is what the textarea
+     will need. */
+  padding: 11px 14px;
+  font: inherit;
+  letter-spacing: -0.005em;
+  /* Top-aligned out of flow but still measurable. */
+  top: 0;
+  left: 0;
 }
 
 /* --- Calendar ------------------------------------------------------------*/
