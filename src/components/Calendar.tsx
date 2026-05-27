@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { toISO, fromISO } from '../lib/util'
 
@@ -37,24 +37,41 @@ export function Calendar({ value, onChange, minDate }: CalendarProps) {
   const [draftStart, setDraftStart] = useState<string | undefined>(value?.start)
   const [draftEnd, setDraftEnd] = useState<string | undefined>(value?.end)
 
+  /* Sync local draft from controlled value — lets parent pre-fill (e.g. an
+     LLM-suggested range) actually show up on the calendar. */
+  useEffect(() => {
+    setDraftStart(value?.start)
+    setDraftEnd(value?.end)
+    if (value?.start) {
+      setAnchor(startOfMonth(fromISO(value.start)))
+    }
+  }, [value?.start, value?.end])
+
   const grid = useMemo(() => buildGrid(anchor), [anchor])
   const month = anchor.getMonth()
 
+  /* Two-tap range with single-day fallback:
+       - Tap 1            : sets the start, waits for the second tap
+       - Tap 2 (same day) : commits a 1-day range (start == end)
+       - Tap 2 (later)    : commits a multi-day range
+       - Tap 2 (earlier)  : treats it as a new start instead of inverting
+       - Tap 3+           : restarts the cycle */
   const handlePick = (iso: string) => {
     if (minDate && iso < minDate) return
-    if (!draftStart || (draftStart && draftEnd)) {
-      // Commit a same-day range on first tap so a single tap yields a 1-day plan.
+
+    const cycleDone = !!draftStart && !!draftEnd
+    if (!draftStart || cycleDone) {
       setDraftStart(iso)
-      setDraftEnd(iso)
-      onChange({ start: iso, end: iso })
+      setDraftEnd(undefined)
       return
     }
+
     if (iso < draftStart) {
       setDraftStart(iso)
-      setDraftEnd(iso)
-      onChange({ start: iso, end: iso })
+      setDraftEnd(undefined)
       return
     }
+
     setDraftEnd(iso)
     onChange({ start: draftStart, end: iso })
   }
