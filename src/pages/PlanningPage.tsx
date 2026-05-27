@@ -81,7 +81,9 @@ export function PlanningPage() {
   const [hours, setHours] = useState<number>(3)
   const [chosenPersona, setChosenPersona] = useState<Persona>(persona)
   const [plan, setPlan] = useState<Plan | null>(null)
-  const [planLoading, setPlanLoading] = useState(false)
+  const [planStatus, setPlanStatus] = useState<
+    'idle' | 'running' | 'completing' | 'timeout'
+  >('idle')
 
   const [greeting, setGreeting] = useState<string | null>(null)
   const [goalParsing, setGoalParsing] = useState(false)
@@ -118,52 +120,58 @@ export function PlanningPage() {
     return CATEGORY_DEFAULT_TITLE[category]
   }, [shortTitle, category])
 
+  /* Generate the plan + sub-tasks. Lifecycle:
+       running   → bar fills toward 99%
+       completing → snap bar to 100% then commit the plan after a brief hold
+       timeout   → API took >28s; surface a retry button (do NOT auto-fall
+                   back to mock — the user asked for explicit retry control). */
   useEffect(() => {
     if (step !== 'plan' || plan || !category || !range.start || !range.end) return
     let cancelled = false
-    setPlanLoading(true)
+    setPlanStatus('running')
     const agents = getAgents()
+
+    const TIMEOUT_MS = 28_000
+    const COMPLETION_HOLD_MS = 600
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT')), TIMEOUT_MS)
+    })
 
     void (async () => {
       try {
-        const p = await agents.planner.decomposeGoal({
-          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
-          category,
-          startDate: range.start!,
-          endDate: range.end!,
-          dailyHours: hours,
-          persona: chosenPersona,
-          subjects: subjects.length > 0 ? subjects : undefined,
-        })
+        const p = await Promise.race([
+          agents.planner.decomposeGoal({
+            goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
+            category,
+            startDate: range.start!,
+            endDate: range.end!,
+            dailyHours: hours,
+            persona: chosenPersona,
+            subjects: subjects.length > 0 ? subjects : undefined,
+          }),
+          timeoutPromise,
+        ])
         if (cancelled) return
         const planned = { ...p, persona: chosenPersona }
         const missions = agents.planner.generateMissions
           ? await agents.planner.generateMissions(planned, category)
           : generateMissions(planned, category)
         if (cancelled) return
-        setPlan(planned)
-        setDraftMissions(
-          missions.length > 0 ? missions : generateMissions(planned, category),
-        )
+
+        setPlanStatus('completing')
+        setTimeout(() => {
+          if (cancelled) return
+          setPlan(planned)
+          setDraftMissions(
+            missions.length > 0 ? missions : generateMissions(planned, category),
+          )
+          setPlanStatus('idle')
+        }, COMPLETION_HOLD_MS)
       } catch (err) {
         if (cancelled) return
-        console.warn('[PlanningPage] LLM planner failed, falling back', err)
-        const mockAgents = createMockAgents()
-        const p = await mockAgents.planner.decomposeGoal({
-          goalText: goalText || CATEGORY_DEFAULT_TITLE[category],
-          category,
-          startDate: range.start!,
-          endDate: range.end!,
-          dailyHours: hours,
-          persona: chosenPersona,
-          subjects: subjects.length > 0 ? subjects : undefined,
-        })
-        if (cancelled) return
-        const planned = { ...p, persona: chosenPersona }
-        setPlan(planned)
-        setDraftMissions(generateMissions(planned, category))
-      } finally {
-        if (!cancelled) setPlanLoading(false)
+        console.warn('[PlanningPage] LLM planner failed', err)
+        setPlanStatus('timeout')
       }
     })()
 
@@ -171,6 +179,8 @@ export function PlanningPage() {
       cancelled = true
     }
   }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
+
+  const onRetryPlan = () => setPlanStatus('idle')
 
   const goToNext = () => {
     const i = ALL_STEPS.indexOf(step)
@@ -475,8 +485,11 @@ export function PlanningPage() {
             <ChatBubble from="pacely">
               {PLAN_INTRO_BY_PERSONA[chosenPersona][0]}
             </ChatBubble>
-            {planLoading || !plan ? (
-              <PlanLoading />
+            {!plan ? (
+              <PlanLoading
+                status={planStatus === 'idle' ? 'running' : planStatus}
+                onRetry={onRetryPlan}
+              />
             ) : (
               <>
                 <ChatBubble from="pacely" hideAvatar>
@@ -496,30 +509,31 @@ export function PlanningPage() {
                 </ChatBubble>
               </>
             )}
-            <div className="planning-cta planning-cta--stack">
-              <Button block disabled={!plan} onClick={onStartPlan}>
-                이 계획으로 시작하기
-              </Button>
-              <Button
-                block
-                variant="secondary"
-                disabled={!plan}
-                onClick={() => setReviseOpen(true)}
-              >
-                직접 수정
-              </Button>
-              <Button
-                block
-                variant="ghost"
-                onClick={() => {
-                  setPlan(null)
-                  setDraftMissions([])
-                  setStep('hours')
-                }}
-              >
-                처음부터 다시
-              </Button>
-            </div>
+            {plan && (
+              <div className="planning-cta planning-cta--stack">
+                <Button block onClick={onStartPlan}>
+                  이 계획으로 시작하기
+                </Button>
+                <Button
+                  block
+                  variant="secondary"
+                  onClick={() => setReviseOpen(true)}
+                >
+                  직접 수정
+                </Button>
+                <Button
+                  block
+                  variant="ghost"
+                  onClick={() => {
+                    setPlan(null)
+                    setDraftMissions([])
+                    setStep('hours')
+                  }}
+                >
+                  처음부터 다시
+                </Button>
+              </div>
+            )}
           </>
         )}
       </div>
