@@ -2811,3 +2811,108 @@
   color: var(--lavender);
   letter-spacing: 0.02em;
 }
+
+/* --- Planning sentinel + tappable day + count badge ---------------------*/
+.planning-body__sentinel {
+  height: 1px;
+  width: 100%;
+}
+.plan-strip__day--tappable {
+  cursor: pointer;
+  text-align: left;
+  width: 64px;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.plan-strip__day--tappable:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--navy-300);
+}
+.plan-strip__day--tappable:active {
+  transform: scale(0.96);
+}
+.plan-strip__count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--navy-200);
+  margin-top: 2px;
+}
+
+/* --- Plan revise sheet --------------------------------------------------*/
+.plan-revise {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding-bottom: var(--sp-4);
+}
+.plan-revise__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.plan-revise__footer {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+/* --- Pacely coach card (always-visible companion line) ------------------*/
+.coach-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  position: relative;
+  overflow: hidden;
+  animation: bubble-in 320ms var(--ease-out) both;
+}
+.coach-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(58, 72, 192, 0.18),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+.coach-card--gentle {
+  border-color: rgba(199, 201, 245, 0.32);
+}
+.coach-card--gentle::before {
+  background: linear-gradient(135deg, rgba(199, 201, 245, 0.22), transparent 65%);
+}
+.coach-card--strict {
+  border-color: rgba(100, 112, 219, 0.55);
+}
+.coach-card--strict::before {
+  background: linear-gradient(135deg, rgba(58, 72, 192, 0.32), transparent 60%);
+}
+.coach-card__body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.coach-card__tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--navy-200);
+  text-transform: uppercase;
+}
+.coach-card__msg {
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
