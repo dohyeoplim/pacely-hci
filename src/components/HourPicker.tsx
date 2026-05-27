@@ -1,7 +1,8 @@
-/* Tap-driven hour picker (1–7h per spec F1.3).
+/* Tap-driven hour picker (1–14h).
 
    The Figma frame shows a fine-tick ruler — we render that visually with
-   subdivision ticks while keeping selection on whole-hour steps. */
+   subdivision ticks while keeping selection on whole-hour steps. The label
+   row thins out when the range is large so 14 labels still fit on mobile. */
 
 import { clamp } from '../lib/util'
 
@@ -14,10 +15,20 @@ interface HourPickerProps {
 
 const SUBDIV = 4 // ticks between integers
 
+/** When the range is wide, only show every Nth hour label so the row doesn't
+   become a wall of numbers. The endpoints + the active hour are always kept. */
+function visibleLabelHours(min: number, max: number, value: number): number[] {
+  const span = max - min
+  const stride = span <= 7 ? 1 : span <= 10 ? 2 : 3
+  const out = new Set<number>([min, max, value])
+  for (let h = min; h <= max; h += stride) out.add(h)
+  return Array.from(out).sort((a, b) => a - b)
+}
+
 export function HourPicker({
   value,
   min = 1,
-  max = 7,
+  max = 14,
   onChange,
 }: HourPickerProps) {
   const step = (dir: 1 | -1) => onChange(clamp(value + dir, min, max))
@@ -69,13 +80,13 @@ export function HourPicker({
           })}
         </div>
         <div className="hour-picker__labels">
-          {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((h) => (
+          {visibleLabelHours(min, max, value).map((h) => (
             <button
               key={h}
               className={`hour-picker__label ${h === value ? 'hour-picker__label--active' : ''}`}
               onClick={() => onChange(h)}
             >
-              {h}:00
+              {h}h
             </button>
           ))}
         </div>
