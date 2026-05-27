@@ -68,7 +68,7 @@ interface DraftMissionSheet {
 
 export function PlanningPage() {
   const navigate = useNavigate()
-  const { state, createGoal, setPersona } = usePacely()
+  const { state, currentGoal: existingGoal, createGoal, setPersona } = usePacely()
   const persona: Persona = state.user.personaPreference
 
   const [step, setStep] = useState<Step>('goal')
@@ -304,8 +304,14 @@ export function PlanningPage() {
   }
 
   const onBack = () => {
-    if (step === 'goal') navigate('/welcome')
-    else goToPrev()
+    if (step !== 'goal') {
+      goToPrev()
+      return
+    }
+    /* Adding a new plan on top of an existing one — back goes home,
+       not to the welcome screen, so the user can always return to the
+       running goal. */
+    navigate(existingGoal ? '/home' : '/welcome')
   }
 
   return (
