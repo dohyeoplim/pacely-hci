@@ -39,7 +39,7 @@ export function PlanDailyStrip({
         <span className="t-caption">이번 주 일정 미리보기</span>
         <span className="t-micro">{plan.weeks}주 플랜 · 처음 {days.length}일</span>
       </div>
-      <ol className="plan-strip__list">
+      <ul className="plan-strip__list">
         {days.map((d, i) => {
           const date = fromISO(d.date)
           const wd = WEEKDAYS_SHORT[date.getDay()]
@@ -87,7 +87,7 @@ export function PlanDailyStrip({
             </li>
           )
         })}
-      </ol>
+      </ul>
     </div>
   )
 }
