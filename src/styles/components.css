@@ -1098,7 +1098,9 @@
 
 /* --- Home ----------------------------------------------------------------*/
 .home-page {
-  padding-top: calc(var(--safe-top) + var(--sp-12));
+  /* safe-top covers the Dynamic Island / notch; sp-6 is the breathing
+     room between the island's bottom edge and the first content line. */
+  padding-top: calc(var(--safe-top) + var(--sp-6));
   padding-bottom: 96px;
   gap: var(--sp-6);
 }
