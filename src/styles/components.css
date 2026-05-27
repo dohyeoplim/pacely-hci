@@ -635,13 +635,63 @@
 }
 
 .plan-loading {
-  text-align: center;
-  padding: var(--sp-8) var(--sp-4);
-  color: var(--text-tertiary);
+  padding: var(--sp-5) var(--sp-4);
+  color: var(--text-secondary);
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--r-lg);
-  margin-top: var(--sp-3);
+  margin-top: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.plan-loading__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.plan-loading__label {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+.plan-loading__label::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--navy-300);
+  margin-left: 8px;
+  vertical-align: middle;
+  animation: plan-loading-pulse 1s ease-in-out infinite;
+}
+.plan-loading__pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy-200);
+  font-variant-numeric: tabular-nums;
+}
+.plan-loading__bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.plan-loading__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #3a48c0, #6470db);
+  border-radius: 999px;
+  transition: width 0.18s linear;
+}
+@keyframes plan-loading-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%      { opacity: 1;   transform: scale(1.15); }
 }
 
 /* --- Mission list --------------------------------------------------------*/
@@ -2979,8 +3029,8 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  margin-top: 2px;
-  margin-left: 38px; /* align under continuation bubble — past avatar gutter */
+  margin-top: -6px;
+  margin-bottom: var(--sp-3);
 }
 .category-pill-row > .t-micro {
   margin-right: 4px;

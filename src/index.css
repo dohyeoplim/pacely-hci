@@ -123,24 +123,18 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow-x: hidden;
-  /* Native-app feel: kill the system text-selection and the iOS callout. */
+  overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-  /* Block pinch / double-tap zoom on the chrome — inputs re-enable it. */
   touch-action: manipulation;
 }
 
 body {
   background: var(--bg);
-  /* Contain rubber-band scroll at the document edges so the shell doesn't
-     bounce like a web page. */
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
 }
 
-/* Allow selection inside actual text inputs / editable surfaces. */
 input,
 textarea,
 [contenteditable='true'] {
@@ -150,30 +144,34 @@ textarea,
 }
 
 #root {
-  min-height: 100svh;
-  overflow-x: hidden;
+  height: 100%;
+  overflow: hidden;
 }
 
-/* The app renders inside a phone-width column, centered on larger screens. */
+/* App shell takes the full viewport and pins its scroll to the .route-frame
+   inside. Tab bar (position: fixed) overlays the viewport bottom; sheets are
+   portaled to body and overlay everything. */
 .app-shell {
   width: 100%;
   max-width: var(--app-max-width);
   margin: 0 auto;
-  min-height: 100svh;
+  height: 100%;
   position: relative;
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
 .route-frame {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   animation: route-in 320ms var(--ease-out) both;
-  will-change: transform, opacity;
 }
 
 @keyframes route-in {
