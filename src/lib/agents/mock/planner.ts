@@ -139,11 +139,6 @@ const GREETING_BY_PERSONA: Record<Persona, Record<GoalCategory, string[]>> = {
   },
 }
 
-const FOLLOW_UP_BY_CATEGORY: Partial<Record<GoalCategory, string>> = {
-  exam: '어떤 과목들을 다룰지 같이 정해봐요.',
-  project: '어떤 단계로 진행할지 정리해봐요.',
-}
-
 function pickFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
@@ -157,6 +152,21 @@ function inferCategory(text: string): GoalCategory {
   return 'custom'
 }
 
+function deriveShortTitle(text: string, category: GoalCategory): string {
+  const fallback: Record<GoalCategory, string> = {
+    exam: '시험 대비',
+    project: '프로젝트',
+    workout: '운동 루틴',
+    diary: '일기 습관',
+    custom: '나만의 목표',
+  }
+  const trimmed = text.replace(/\s+/g, ' ').trim()
+  if (!trimmed) return fallback[category]
+  const cut = trimmed.split(/[,.!?\n]|할거야|하고\s*싶|준비/)[0].trim()
+  const base = cut.length > 0 ? cut : trimmed
+  return base.length > 16 ? base.slice(0, 16) + '…' : base
+}
+
 export class MockPlanner implements PlannerAgent {
   async parseGoal(input: ParseGoalInput): Promise<ParseGoalResult> {
     await delay(280 + Math.random() * 320)
@@ -164,10 +174,10 @@ export class MockPlanner implements PlannerAgent {
     const greeting = pickFrom(GREETING_BY_PERSONA[input.persona][category])
     return {
       category,
+      shortTitle: deriveShortTitle(input.goalText, category),
       greeting,
       suggestedSubjects: DEFAULT_SUBJECTS[category],
       suggestedDays: DEFAULT_DAYS[category],
-      followUp: FOLLOW_UP_BY_CATEGORY[category],
     }
   }
 

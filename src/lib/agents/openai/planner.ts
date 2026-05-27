@@ -6,7 +6,7 @@ import type {
   Persona,
   Plan,
 } from '../../../types'
-import { daysBetween, uid } from '../../util'
+import { addDays, daysBetween, todayISO, uid } from '../../util'
 import type {
   ParseGoalInput,
   ParseGoalResult,
@@ -87,36 +87,44 @@ ${plan.dailyAllocation
 
 interface RawParseGoal {
   category?: string
+  shortTitle?: string
   greeting: string
   suggestedSubjects?: string[]
   suggestedDays?: number
-  followUp?: string
+  suggestedStartDate?: string | null
+  suggestedEndDate?: string | null
 }
 
 function parseGoalSystem(): string {
-  return `너는 Pacely라는 한국어 AI 페이스메이커. 사용자가 자유롭게 적은 목표 문장을 받아서:
-1. 카테고리 분류 — 다음 중 하나: "exam" (시험/공부/자격증/학점), "project" (개발/디자인/기획/포트폴리오), "workout" (운동/체력/다이어트), "diary" (일기/회고/기록), "custom" (위에 안 맞으면)
-2. 따뜻하거나 단호한 한 줄 응답 (페르소나 반영, 60자 이내, 사용자의 목표를 짧게 인용하면 더 좋음)
-3. 그 목표에 적합한 주제 / 단계 3~5개 (exam/project일 때만; 그 외는 빈 배열)
-4. 추천 기간 (일 단위, 1~90 범위) — 사용자 문장에 기간 단서 있으면 우선 반영
-5. 다음 단계로 권유하는 짧은 follow-up 한 줄 (선택)
+  return `너는 Pacely 한국어 AI 페이스메이커. 사용자의 자유 문장을 받아 다음을 추출해:
+
+1. category — "exam" | "project" | "workout" | "diary" | "custom"
+2. shortTitle — 페이지 제목으로 쓸 짧은 한 줄 (16자 이내, 명사구, 동사/문장부호 최소화)
+3. greeting — 따뜻하거나 단호한 한 줄 응답 (페르소나 반영, 60자 이내)
+4. suggestedSubjects — 주제 / 단계 3~5개 (exam/project만, 그 외는 빈 배열)
+5. suggestedDays — 추천 기간 (1~90, 사용자 문장의 기간 단서 우선)
+6. suggestedStartDate / suggestedEndDate — 사용자가 명시적 시작/종료 시점을 적었으면 YYYY-MM-DD로 둘 다, 아니면 둘 다 null
 
 스키마:
 {
   "category": "exam" | "project" | "workout" | "diary" | "custom",
+  "shortTitle": string,
   "greeting": string,
   "suggestedSubjects": string[],
   "suggestedDays": number,
-  "followUp": string | null
+  "suggestedStartDate": string | null,
+  "suggestedEndDate": string | null
 }
 
 규칙:
-- 페르소나 gentle = "~요" 체, 격려. strict = "~합시다" / "~하세요", 단호.
+- shortTitle은 사용자가 길게 적어도 핵심만. "운영체제 시험 준비를 위해 일주일 동안 매일 4시간씩 자료를 정리하고…" → "운영체제 시험 준비".
+- 페르소나 gentle = "~요" 체. strict = "~합시다" / "~하세요" 체.
 - JSON만 반환. 마크다운, 설명 금지.`
 }
 
 function parseGoalUserPrompt(input: ParseGoalInput): string {
-  return `페르소나: ${input.persona}
+  return `오늘 날짜: ${todayISO()}
+페르소나: ${input.persona}
 ${input.category ? `(힌트 — 사용자가 미리 고른 카테고리: ${input.category})` : ''}
 사용자 목표 문장: "${input.goalText}"`
 }
@@ -162,30 +170,41 @@ export class OpenAIPlanner implements PlannerAgent {
       const parsed = parseJsonResponse<RawParseGoal>(raw)
       const category = clampCategory(parsed.category, input.category ?? 'custom')
       const supportsSubjects = category === 'exam' || category === 'project'
+      const suggestedDays = clampInt(
+        parsed.suggestedDays,
+        1,
+        90,
+        FALLBACK_DAYS[category],
+      )
+      const { suggestedStartDate, suggestedEndDate } = sanitizeDateHint(
+        parsed.suggestedStartDate,
+        parsed.suggestedEndDate,
+        suggestedDays,
+      )
+      const rawTitle = (parsed.shortTitle ?? '').trim()
+      const shortTitle =
+        rawTitle.length > 0 && rawTitle.length <= 24
+          ? rawTitle
+          : fallbackTitleFor(input.goalText, category)
       return {
         category,
+        shortTitle,
         greeting:
           (parsed.greeting ?? '').trim() ||
           '좋은 목표예요. 같이 잘 짜봐요.',
         suggestedSubjects: supportsSubjects
           ? (parsed.suggestedSubjects ?? []).slice(0, 6)
           : [],
-        suggestedDays: clampInt(
-          parsed.suggestedDays,
-          1,
-          90,
-          FALLBACK_DAYS[category],
-        ),
-        followUp:
-          parsed.followUp && parsed.followUp.trim().length > 0
-            ? parsed.followUp.trim()
-            : undefined,
+        suggestedDays,
+        suggestedStartDate,
+        suggestedEndDate,
       }
     } catch (err) {
       console.warn('[OpenAIPlanner] parseGoal failed, using fallback', err)
       const fallback: GoalCategory = input.category ?? 'custom'
       return {
         category: fallback,
+        shortTitle: fallbackTitleFor(input.goalText, fallback),
         greeting:
           input.persona === 'gentle'
             ? '좋은 목표예요. 같이 잘 짜봐요.'
@@ -318,6 +337,45 @@ function clampInt(
 ): number {
   if (typeof value !== 'number' || Number.isNaN(value)) return fallback
   return Math.max(lo, Math.min(hi, Math.round(value)))
+}
+
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/* Validate the LLM-suggested date pair. Returns both or neither — we never
+   carry a half-valid range forward. */
+function sanitizeDateHint(
+  start: string | null | undefined,
+  end: string | null | undefined,
+  fallbackDays: number,
+): { suggestedStartDate?: string; suggestedEndDate?: string } {
+  const today = todayISO()
+  const validStart = typeof start === 'string' && ISO_RE.test(start)
+  const validEnd = typeof end === 'string' && ISO_RE.test(end)
+  if (!validStart || !validEnd) return {}
+  const s = start as string
+  const e = end as string
+  if (s < today) return {}
+  if (e < s) return {}
+  const dayDelta = daysBetween(s, e) + 1
+  if (dayDelta < 1 || dayDelta > 120) return {}
+  void fallbackDays
+  void addDays
+  return { suggestedStartDate: s, suggestedEndDate: e }
+}
+
+function fallbackTitleFor(text: string, category: GoalCategory): string {
+  const trimmed = text.replace(/\s+/g, ' ').trim()
+  const defaults: Record<GoalCategory, string> = {
+    exam: '시험 대비',
+    project: '프로젝트',
+    workout: '운동 루틴',
+    diary: '일기 습관',
+    custom: '나만의 목표',
+  }
+  if (!trimmed) return defaults[category]
+  const cut = trimmed.split(/[,.!?\n]|할거야|하고\s*싶|준비/)[0].trim()
+  const base = cut.length > 0 ? cut : trimmed
+  return base.length > 16 ? base.slice(0, 16) + '…' : base
 }
 
 function clampPhase(value: number): 0 | 1 | 2 {

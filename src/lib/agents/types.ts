@@ -35,10 +35,17 @@ export interface ParseGoalInput {
 
 export interface ParseGoalResult {
   category: GoalCategory
+  /** Short header/title derived from the goal — ≤ 16 chars, used as the
+      planning page header and the persisted goal title. */
+  shortTitle: string
   greeting: string
   suggestedSubjects: string[]
   suggestedDays: number
-  followUp?: string
+  /** Explicit ISO dates when the user's wording carries them (e.g. "다음
+      주 월요일부터 2주"). When null, the UI falls back to today →
+      today+suggestedDays. */
+  suggestedStartDate?: string
+  suggestedEndDate?: string
 }
 
 export interface PlannerAgent {
