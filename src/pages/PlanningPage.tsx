@@ -2,7 +2,12 @@
 
    For exam + project goals we slot a "subjects" step between category and
    period, so the generated plan can rotate per-subject missions through each
-   day (e.g. 선형대수, 확률통계, 알고리즘). Other categories skip that step. */
+   day (e.g. 선형대수, 확률통계, 알고리즘). Other categories skip that step.
+
+   The plan-preview step is the heart of Pacely's HCI value prop: the AI
+   produces a detailed day-by-day breakdown with concrete sub-tasks, then
+   stays editable as a conversation — daily hours, subjects, persona, and
+   per-day sub-tasks can all be tweaked without redoing the wizard. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -13,14 +18,17 @@ import { Calendar, rangeDays, rangeIsValid } from '../components/Calendar'
 import { CATEGORY_ORDER, CategoryCard } from '../components/CategoryCard'
 import { ChatBubble } from '../components/ChatBubble'
 import { HourPicker } from '../components/HourPicker'
+import { MissionEditSheet } from '../components/MissionEditSheet'
 import { PersonaCard } from '../components/PersonaCard'
 import { PlanCard } from '../components/PlanCard'
 import { PlanDailyStrip } from '../components/PlanDailyStrip'
+import { PlanReviseSheet } from '../components/PlanReviseSheet'
 import { SubjectInput } from '../components/SubjectInput'
 import { getAgents } from '../lib/agents'
+import { generateMissions } from '../lib/store/missions'
 import { usePacely } from '../lib/store/store'
-import { addDays, todayISO } from '../lib/util'
-import type { GoalCategory, Persona, Plan } from '../types'
+import { addDays, todayISO, uid } from '../lib/util'
+import type { GoalCategory, MissionTask, Persona, Plan } from '../types'
 
 type Step = 'category' | 'subjects' | 'period' | 'hours' | 'persona' | 'plan'
 
@@ -69,6 +77,21 @@ const SUBJECT_PROMPT: Partial<Record<GoalCategory, string>> = {
   project: '어떤 단계로 진행하실 거예요?',
 }
 
+/* Companion-tone reactions that play once the plan is generated, varied by
+   persona so participants in the LAB1 LAB3 conditions get the right feel. */
+const PLAN_INTRO_BY_PERSONA: Record<Persona, [string, string, string]> = {
+  gentle: [
+    '같이 차근차근 짜봤어요.',
+    '처음엔 가볍게, 가운데는 본격적으로, 마지막은 부드럽게 마무리하는 흐름이에요.',
+    '혼자가 아니에요 — 매일 같은 시간에 옆에 있을게요.',
+  ],
+  strict: [
+    '데이터 기준으로 빈틈없이 짜왔습니다.',
+    '하루를 워밍업 → 핵심 작업 → 회고로 끊었어요.',
+    '시작 시간을 정해두면 더 잘 따라올 수 있어요.',
+  ],
+}
+
 function deriveTitle(text: string, fallback: string): string {
   const trimmed = text.replace(/\s+/g, ' ').trim()
   if (!trimmed) return fallback
@@ -76,6 +99,12 @@ function deriveTitle(text: string, fallback: string): string {
   const base = cut.length > 0 ? cut : trimmed
   const shortened = base.length > 16 ? base.slice(0, 16) + '…' : base
   return shortened.endsWith('하기') ? shortened : `${shortened} 대비하기`
+}
+
+interface DraftMissionSheet {
+  mode: 'add' | 'edit'
+  mission?: MissionTask
+  date?: string
 }
 
 export function PlanningPage() {
@@ -94,7 +123,16 @@ export function PlanningPage() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [planLoading, setPlanLoading] = useState(false)
 
+  /* Draft missions live alongside the plan so the user can edit individual
+     sub-tasks before committing. Regenerated whenever a new plan lands. */
+  const [draftMissions, setDraftMissions] = useState<MissionTask[]>([])
+  const [reviseOpen, setReviseOpen] = useState(false)
+  const [missionSheet, setMissionSheet] = useState<DraftMissionSheet | null>(
+    null,
+  )
+
   const bodyRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
   const goalTextareaRef = useRef<HTMLTextAreaElement>(null)
   const steps = useMemo(() => stepsFor(category), [category])
   const stepIndex = steps.indexOf(step)
@@ -142,7 +180,10 @@ export function PlanningPage() {
         subjects: subjects.length > 0 ? subjects : undefined,
       })
       .then((p) => {
-        if (!cancelled) setPlan(p)
+        if (cancelled) return
+        const planned = { ...p, persona: chosenPersona }
+        setPlan(planned)
+        setDraftMissions(generateMissions(planned, category))
       })
       .finally(() => {
         if (!cancelled) setPlanLoading(false)
@@ -152,35 +193,36 @@ export function PlanningPage() {
     }
   }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
 
-  /* Smooth auto-scroll to the latest chat bubble.
+  /* Auto-scroll the chat to the latest bubble.
 
-     Step / plan transitions are the obvious triggers, but the chat also grows
-     mid-step (calendar pick → "N일의 계획" bubble; subject chips; textarea
-     autosize). A ResizeObserver on the body element catches every growth and
-     scrolls past it so the next prompt is always in view. */
+     We anchor on a sentinel <div ref={bottomRef} /> at the very end of the
+     planning-body and call scrollIntoView on it. scrollIntoView is more
+     reliable than window.scrollTo(scrollHeight) because the browser computes
+     the exact target from element layout, so a smooth scroll won't undershoot
+     when content keeps growing mid-animation. */
   useEffect(() => {
-    const el = bodyRef.current
-    if (!el) return
-
     const scrollToBottom = () => {
       window.requestAnimationFrame(() => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          behavior: 'smooth',
+        window.requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'end',
+          })
         })
       })
     }
 
     scrollToBottom()
-    if (typeof ResizeObserver === 'undefined') return
 
-    let lastHeight = el.getBoundingClientRect().height
+    const body = bodyRef.current
+    if (!body || typeof ResizeObserver === 'undefined') return
+    let lastHeight = body.getBoundingClientRect().height
     const ro = new ResizeObserver(() => {
-      const h = el.getBoundingClientRect().height
+      const h = body.getBoundingClientRect().height
       if (h > lastHeight + 1) scrollToBottom()
       lastHeight = h
     })
-    ro.observe(el)
+    ro.observe(body)
     return () => ro.disconnect()
   }, [step, plan])
 
@@ -192,7 +234,10 @@ export function PlanningPage() {
   const goToPrev = () => {
     const i = steps.indexOf(step)
     if (i <= 0) return
-    if (step === 'plan') setPlan(null)
+    if (step === 'plan') {
+      setPlan(null)
+      setDraftMissions([])
+    }
     setStep(steps[i - 1])
   }
 
@@ -215,8 +260,60 @@ export function PlanningPage() {
       title,
       category,
       plan: { ...plan, persona: chosenPersona },
+      missions: draftMissions,
     })
     navigate('/day-start')
+  }
+
+  /* Open the inline plan revise sheet — lets us tune hours / subjects /
+     persona without losing the chat context, then regenerates everything. */
+  const onApplyRevise = (next: {
+    hours: number
+    subjects: string[]
+    persona: Persona
+  }) => {
+    setHours(next.hours)
+    setSubjects(next.subjects)
+    setChosenPersona(next.persona)
+    setPlan(null) // triggers the plan-step effect to re-run with new inputs
+    setDraftMissions([])
+  }
+
+  /* Per-day sub-task editing handlers — the user can refine the AI's
+     proposed missions or add their own before committing the plan. */
+  const handleSaveMission = (input: {
+    id?: string
+    title: string
+    estimatedMinutes: number
+    date: string
+  }) => {
+    setDraftMissions((prev) => {
+      if (input.id) {
+        return prev.map((m) =>
+          m.id === input.id
+            ? {
+                ...m,
+                title: input.title,
+                estimatedMinutes: input.estimatedMinutes,
+                date: input.date,
+              }
+            : m,
+        )
+      }
+      return [
+        ...prev,
+        {
+          id: uid('m'),
+          title: input.title,
+          estimatedMinutes: input.estimatedMinutes,
+          date: input.date,
+          completed: false,
+        },
+      ]
+    })
+  }
+  const handleDeleteMission = (id: string) => {
+    setDraftMissions((prev) => prev.filter((m) => m.id !== id))
   }
 
   const onBack = () => {
@@ -309,7 +406,7 @@ export function PlanningPage() {
               />
             </div>
             <ChatBubble from="pacely" hideAvatar>
-              기간을 설정했어요!
+              언제부터 언제까지 같이 갈까요? 하루짜리도 좋아요.
             </ChatBubble>
             <Calendar
               value={range}
@@ -318,8 +415,9 @@ export function PlanningPage() {
             />
             {rangeIsValid(range) && (
               <ChatBubble from="pacely" hideAvatar>
-                {rangeDays(range.start!, range.end!)}일의 계획이에요. 다음으로
-                넘어가요.
+                {rangeDays(range.start!, range.end!) === 1
+                  ? '하루짜리 집중 플랜이네요. 다음으로 가요.'
+                  : `${rangeDays(range.start!, range.end!)}일의 여정이에요. 다음으로 가요.`}
               </ChatBubble>
             )}
             <div className="planning-cta">
@@ -340,18 +438,18 @@ export function PlanningPage() {
         {step === 'hours' && (
           <>
             <ChatBubble from="pacely">
-              이제 하루 목표를 설정해 주세요.
+              하루에 몇 시간 정도 같이 쓸 수 있어요?
             </ChatBubble>
             {subjects.length > 0 && (
               <ChatBubble from="pacely" hideAvatar>
-                {subjects.length}개로 나누면 한 과목당 약 {' '}
+                {subjects.length}개로 나누면 한 주제당 약 {' '}
                 {Math.round((hours * 60) / subjects.length)}분이에요.
               </ChatBubble>
             )}
-            <HourPicker value={hours} onChange={setHours} />
+            <HourPicker value={hours} min={1} max={14} onChange={setHours} />
             <div className="planning-cta">
               <Button block onClick={goToNext}>
-                시간 설정하기
+                {hours}시간으로 가기
               </Button>
             </div>
           </>
@@ -385,7 +483,7 @@ export function PlanningPage() {
         {step === 'plan' && (
           <>
             <ChatBubble from="pacely">
-              너무 무리하지 않도록 계획을 세워봤어요!
+              {PLAN_INTRO_BY_PERSONA[chosenPersona][0]}
             </ChatBubble>
             {planLoading || !plan ? (
               <div className="plan-loading t-caption">
@@ -393,8 +491,23 @@ export function PlanningPage() {
               </div>
             ) : (
               <>
+                <ChatBubble from="pacely" hideAvatar>
+                  {PLAN_INTRO_BY_PERSONA[chosenPersona][1]}
+                </ChatBubble>
                 <PlanCard plan={plan} goalTitle={title} />
-                <PlanDailyStrip plan={plan} />
+                <ChatBubble from="pacely" hideAvatar>
+                  날짜를 탭하면 그 날 미션을 같이 다듬을 수 있어요.
+                </ChatBubble>
+                <PlanDailyStrip
+                  plan={plan}
+                  missions={draftMissions}
+                  onPickDay={(date) =>
+                    setMissionSheet({ mode: 'add', date })
+                  }
+                />
+                <ChatBubble from="pacely" hideAvatar>
+                  {PLAN_INTRO_BY_PERSONA[chosenPersona][2]}
+                </ChatBubble>
               </>
             )}
             <div className="planning-cta planning-cta--stack">
@@ -404,17 +517,57 @@ export function PlanningPage() {
               <Button
                 block
                 variant="secondary"
+                disabled={!plan}
+                onClick={() => setReviseOpen(true)}
+              >
+                직접 수정
+              </Button>
+              <Button
+                block
+                variant="ghost"
                 onClick={() => {
                   setPlan(null)
+                  setDraftMissions([])
                   setStep('hours')
                 }}
               >
-                계획 수정하기
+                처음부터 다시
               </Button>
             </div>
           </>
         )}
+
+        {/* Sentinel anchored at the very bottom so scrollIntoView always
+            lands past the latest content. */}
+        <div ref={bottomRef} className="planning-body__sentinel" aria-hidden />
       </div>
+
+      {category && (
+        <PlanReviseSheet
+          open={reviseOpen}
+          category={category}
+          initialHours={hours}
+          initialSubjects={subjects}
+          initialPersona={chosenPersona}
+          showSubjects={category === 'exam' || category === 'project'}
+          subjectSuggestions={SUBJECT_SUGGESTIONS[category]}
+          onClose={() => setReviseOpen(false)}
+          onApply={onApplyRevise}
+        />
+      )}
+
+      {plan && missionSheet && (
+        <MissionEditSheet
+          open={!!missionSheet}
+          mode={missionSheet.mode}
+          plan={plan}
+          mission={missionSheet.mission}
+          defaultDate={missionSheet.date}
+          onSave={handleSaveMission}
+          onDelete={handleDeleteMission}
+          onClose={() => setMissionSheet(null)}
+        />
+      )}
     </div>
   )
 }
