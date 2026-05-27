@@ -45,6 +45,26 @@ export interface PlannerInput {
   subjects?: string[]
 }
 
+export interface ParseGoalInput {
+  goalText: string
+  category: GoalCategory
+  persona: Persona
+}
+
+export interface ParseGoalResult {
+  /** A short, companion-toned response shown back to the user in chat. */
+  greeting: string
+  /** Suggested subjects / phases when the category supports them. Empty
+      array for diary / workout / custom unless the LLM derives any. */
+  suggestedSubjects: string[]
+  /** Recommended total day count for this goal. Calendar pre-fills with
+      today → today + (suggestedDays - 1). Clamped to 1-90. */
+  suggestedDays: number
+  /** Optional follow-up bubble shown alongside the greeting (e.g.
+      "이런 단계들로 나눠볼까요?"). */
+  followUp?: string
+}
+
 export interface PlannerAgent {
   /** Decompose a goal into milestones + per-day allocation. */
   decomposeGoal(input: PlannerInput): Promise<Plan>
@@ -52,6 +72,10 @@ export interface PlannerAgent {
       LLM-backed planners override this so missions are coherent with the
       plan's narrative; otherwise callers use the local templated fallback. */
   generateMissions?(plan: Plan, category: GoalCategory): Promise<MissionTask[]>
+  /** Optional: parse the user's freeform goal sentence and propose subjects,
+      duration, and a personalised companion line. Drives the early dialogue
+      in the planning chat — fallback returns deterministic defaults. */
+  parseGoal?(input: ParseGoalInput): Promise<ParseGoalResult>
 }
 
 /* --- Dialogue (§3.2) ----------------------------------------------------*/

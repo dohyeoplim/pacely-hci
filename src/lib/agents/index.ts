@@ -71,6 +71,8 @@ export type {
   Insight,
   Orchestrator,
   OrchestratorResult,
+  ParseGoalInput,
+  ParseGoalResult,
   PlannerAgent,
   PlannerInput,
   ReasoningEngine,

@@ -7,11 +7,17 @@ import type {
   DailyAllocation,
   GoalCategory,
   Milestone,
+  Persona,
   Plan,
 } from '../../../types'
 import { addDays, daysBetween, formatHours, uid } from '../../util'
 import { delay } from '../reasoning'
-import type { PlannerAgent, PlannerInput } from '../types'
+import type {
+  ParseGoalInput,
+  ParseGoalResult,
+  PlannerAgent,
+  PlannerInput,
+} from '../types'
 
 interface CategoryTemplate {
   /** three phases: ramp-up → core → wrap-up */
@@ -77,7 +83,92 @@ function phaseOf(dayIndex: number, totalDays: number): number {
   return 2
 }
 
+const DEFAULT_SUBJECTS: Record<GoalCategory, string[]> = {
+  exam: ['핵심 개념', '문제 풀이', '오답 정리'],
+  project: ['리서치', '디자인', '구현', 'QA'],
+  workout: [],
+  diary: [],
+  custom: [],
+}
+
+const DEFAULT_DAYS: Record<GoalCategory, number> = {
+  exam: 14,
+  project: 14,
+  workout: 28,
+  diary: 14,
+  custom: 14,
+}
+
+const GREETING_BY_PERSONA: Record<Persona, Record<GoalCategory, string[]>> = {
+  gentle: {
+    exam: [
+      '시험 준비, 같이 차근차근 가요. 무리하지 않게 짜볼게요.',
+      '좋은 목표예요. 부담 안 되게 매일 조금씩 나눠봐요.',
+    ],
+    project: [
+      '프로젝트 시작이 가장 어렵죠. 작은 단계로 같이 쪼개봐요.',
+      '함께 가요. 큰 그림부터 한 발씩 같이 잡아볼게요.',
+    ],
+    workout: [
+      '운동은 매일의 작은 약속이에요. 같이 시작해봐요.',
+      '몸이 익숙해질 때까지 옆에 있을게요.',
+    ],
+    diary: [
+      '한 줄이면 충분해요. 매일 같이 적어봐요.',
+      '기록은 천천히 쌓이는 자취예요. 가볍게 시작해요.',
+    ],
+    custom: [
+      '좋은 출발이에요. 같이 작은 단계로 만들어볼게요.',
+      '같이 가는 길이라 든든할 거예요.',
+    ],
+  },
+  strict: {
+    exam: [
+      '시험 일정에 맞춰 데이터 기준으로 짭니다. 계획 따라오세요.',
+      '시간 단위로 끊어서 갑니다. 흔들리지 마세요.',
+    ],
+    project: [
+      '프로젝트는 단계와 마감이 전부입니다. 바로 정리합니다.',
+      '의존 관계 잡고 우선순위대로 갑니다.',
+    ],
+    workout: [
+      '운동은 빈도가 핵심입니다. 주당 횟수부터 정합니다.',
+      '루틴 정착이 목표입니다. 빠지지 마세요.',
+    ],
+    diary: [
+      '매일 같은 시각에 기록합니다. 시간만 정하세요.',
+      '습관화는 시간 고정이 우선입니다.',
+    ],
+    custom: [
+      '목표를 명확히 잡았으니 단계로 분해합니다.',
+      '계획부터 잡고 시작합니다.',
+    ],
+  },
+}
+
+const FOLLOW_UP_BY_CATEGORY: Partial<Record<GoalCategory, string>> = {
+  exam: '어떤 과목들을 다룰지 같이 정해봐요.',
+  project: '어떤 단계로 진행할지 정리해봐요.',
+}
+
+function pickFrom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 export class MockPlanner implements PlannerAgent {
+  async parseGoal(input: ParseGoalInput): Promise<ParseGoalResult> {
+    await delay(280 + Math.random() * 320)
+    const greeting = pickFrom(
+      GREETING_BY_PERSONA[input.persona][input.category],
+    )
+    return {
+      greeting,
+      suggestedSubjects: DEFAULT_SUBJECTS[input.category],
+      suggestedDays: DEFAULT_DAYS[input.category],
+      followUp: FOLLOW_UP_BY_CATEGORY[input.category],
+    }
+  }
+
   async decomposeGoal(input: PlannerInput): Promise<Plan> {
     await delay(420 + Math.random() * 480)
 

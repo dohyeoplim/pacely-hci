@@ -12,7 +12,12 @@ import type {
   Plan,
 } from '../../../types'
 import { addDays, daysBetween, uid } from '../../util'
-import type { PlannerAgent, PlannerInput } from '../types'
+import type {
+  ParseGoalInput,
+  ParseGoalResult,
+  PlannerAgent,
+  PlannerInput,
+} from '../types'
 import { callLLM, parseJsonResponse, type ChatMessage } from './client'
 
 interface RawPlan {
@@ -105,7 +110,97 @@ ${plan.dailyAllocation
   .join('\n')}`
 }
 
+interface RawParseGoal {
+  greeting: string
+  suggestedSubjects?: string[]
+  suggestedDays?: number
+  followUp?: string
+}
+
+function parseGoalSystem(): string {
+  return `너는 Pacely라는 한국어 AI 페이스메이커. 사용자가 자유롭게 적은 목표 문장을 받아서:
+1. 따뜻하거나 단호한 한 줄 응답 (페르소나 반영, 60자 이내)
+2. 그 목표에 적합한 주제 / 단계 3~5개 (제공된 카테고리 기반)
+3. 추천 기간 (일 단위, 1~90 범위)
+4. 다음 단계로 넘어가도록 권유하는 짧은 follow-up 한 줄 (선택)
+를 JSON으로 반환해.
+
+스키마:
+{
+  "greeting": string,
+  "suggestedSubjects": string[],
+  "suggestedDays": number,
+  "followUp": string | null
+}
+
+규칙:
+- greeting은 사용자의 목표를 짧게 인용/요약하면서 격려.
+- workout / diary / custom 카테고리는 suggestedSubjects를 빈 배열로.
+- 사용자 텍스트에 기간 단서가 있으면 (예: "2주 안에", "한 달 동안") 그걸 우선 반영.
+- 페르소나 gentle = "~요" 체, 격려. strict = "~합시다" / "~하세요", 단호.
+- JSON만 반환. 마크다운, 설명 금지.`
+}
+
+function parseGoalUserPrompt(input: ParseGoalInput): string {
+  return `카테고리: ${input.category}
+페르소나: ${input.persona}
+사용자 목표 문장: "${input.goalText}"`
+}
+
+const FALLBACK_DAYS: Record<GoalCategory, number> = {
+  exam: 14,
+  project: 14,
+  workout: 28,
+  diary: 14,
+  custom: 14,
+}
+
 export class OpenAIPlanner implements PlannerAgent {
+  async parseGoal(input: ParseGoalInput): Promise<ParseGoalResult> {
+    const messages: ChatMessage[] = [
+      { role: 'system', content: parseGoalSystem() },
+      { role: 'user', content: parseGoalUserPrompt(input) },
+    ]
+    try {
+      const raw = await callLLM(messages, {
+        responseFormat: 'json',
+        maxTokens: 400,
+        temperature: 0.7,
+      })
+      const parsed = parseJsonResponse<RawParseGoal>(raw)
+      const supportsSubjects =
+        input.category === 'exam' || input.category === 'project'
+      return {
+        greeting:
+          (parsed.greeting ?? '').trim() ||
+          '좋은 목표예요. 같이 잘 짜봐요.',
+        suggestedSubjects: supportsSubjects
+          ? (parsed.suggestedSubjects ?? []).slice(0, 6)
+          : [],
+        suggestedDays: clampInt(
+          parsed.suggestedDays,
+          1,
+          90,
+          FALLBACK_DAYS[input.category],
+        ),
+        followUp:
+          parsed.followUp && parsed.followUp.trim().length > 0
+            ? parsed.followUp.trim()
+            : undefined,
+      }
+    } catch (err) {
+      console.warn('[OpenAIPlanner] parseGoal failed, using fallback', err)
+      return {
+        greeting:
+          input.persona === 'gentle'
+            ? '좋은 목표예요. 같이 잘 짜봐요.'
+            : '좋습니다. 바로 계획에 들어갑시다.',
+        suggestedSubjects: [],
+        suggestedDays: FALLBACK_DAYS[input.category],
+      }
+    }
+  }
+
   async decomposeGoal(input: PlannerInput): Promise<Plan> {
     const messages: ChatMessage[] = [
       { role: 'system', content: planSystemPrompt() },
@@ -209,6 +304,16 @@ export class OpenAIPlanner implements PlannerAgent {
 function clampHours(value: number, fallback: number): number {
   if (typeof value !== 'number' || Number.isNaN(value)) return fallback
   return Math.max(0.5, Math.min(14, value))
+}
+
+function clampInt(
+  value: number | undefined,
+  lo: number,
+  hi: number,
+  fallback: number,
+): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) return fallback
+  return Math.max(lo, Math.min(hi, Math.round(value)))
 }
 
 function clampPhase(value: number): 0 | 1 | 2 {
