@@ -1,99 +1,103 @@
-/* Pacely LLM proxy — Vercel serverless function.
+/* Pacely LLM proxy — Vercel Edge function.
 
-   The Pacely client is a static Vite PWA, so the OpenAI key MUST stay on
-   the server. This function accepts a structured chat request from the
-   client and forwards it to OpenAI's Chat Completions endpoint using the
-   key stored as an unprefixed Vercel env var (`OPENAI_API_KEY`).
+   Edge runtime keeps cold starts near-zero and bumps the Hobby-tier
+   timeout to 25s, which fits the plan-generation calls comfortably. The
+   OpenAI Node SDK isn't used; we just POST directly to OpenAI's REST
+   endpoint with the server-side key. */
 
-   The agents call this through `src/lib/agents/openai/client.ts`. */
+type Role = 'system' | 'user' | 'assistant'
 
-import OpenAI from 'openai'
-
-type ChatMessage = {
-  role: 'system' | 'user' | 'assistant'
+interface ChatMessage {
+  role: Role
   content: string
 }
 
 interface LlmRequest {
   messages: ChatMessage[]
   model?: string
-  /** Pass-through for OpenAI structured output. */
   responseFormat?: 'text' | 'json'
   maxTokens?: number
   temperature?: number
 }
 
-interface LlmResponse {
-  content: string
-}
-
-interface LlmError {
-  error: string
-}
-
 const DEFAULT_MODEL = 'gpt-4o-mini'
+const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions'
 
-function bad(res: Response, code: number, msg: string): Response {
-  return new Response(JSON.stringify({ error: msg } satisfies LlmError), {
-    status: code,
-    headers: { 'content-type': 'application/json' },
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+    },
   })
 }
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') {
-    return bad(new Response(), 405, 'Method Not Allowed')
+    return json({ error: 'Method Not Allowed' }, 405)
   }
 
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
-    return bad(new Response(), 500, 'OPENAI_API_KEY not configured on server')
+    return json({ error: 'OPENAI_API_KEY not configured on server' }, 500)
   }
 
   let body: LlmRequest
   try {
     body = (await req.json()) as LlmRequest
   } catch {
-    return bad(new Response(), 400, 'Invalid JSON body')
+    return json({ error: 'Invalid JSON body' }, 400)
   }
 
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    return bad(new Response(), 400, 'messages must be a non-empty array')
+    return json({ error: 'messages must be a non-empty array' }, 400)
   }
 
-  const client = new OpenAI({ apiKey })
+  /* Construct the upstream request body. OpenAI's REST schema is identical
+     to what the SDK produces, so we just pass through. */
+  const upstream = {
+    model: body.model ?? DEFAULT_MODEL,
+    messages: body.messages,
+    max_tokens: body.maxTokens ?? 1200,
+    temperature: body.temperature ?? 0.7,
+    response_format:
+      body.responseFormat === 'json'
+        ? { type: 'json_object' }
+        : { type: 'text' },
+  }
 
   try {
-    const completion = await client.chat.completions.create({
-      model: body.model ?? DEFAULT_MODEL,
-      messages: body.messages,
-      max_tokens: body.maxTokens ?? 1200,
-      temperature: body.temperature ?? 0.7,
-      response_format:
-        body.responseFormat === 'json'
-          ? { type: 'json_object' }
-          : { type: 'text' },
-    })
-    const content = completion.choices[0]?.message?.content ?? ''
-    return new Response(
-      JSON.stringify({ content } satisfies LlmResponse),
-      {
-        status: 200,
-        headers: {
-          'content-type': 'application/json',
-          /* No caching — every call should hit the model. */
-          'cache-control': 'no-store',
-        },
+    const resp = await fetch(OPENAI_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`,
       },
-    )
+      body: JSON.stringify(upstream),
+    })
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '')
+      return json(
+        { error: `OpenAI ${resp.status}: ${errText.slice(0, 300)}` },
+        502,
+      )
+    }
+
+    const data = (await resp.json()) as {
+      choices?: { message?: { content?: string } }[]
+    }
+    const content = data.choices?.[0]?.message?.content ?? ''
+    return json({ content })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'OpenAI request failed'
-    return bad(new Response(), 502, msg)
+    return json({ error: msg }, 502)
   }
 }
 
-/* Vercel Node runtime config — keeps cold-start light and uses Node 20. */
+/* Edge runtime + Hobby-tier 25s allowance keeps plan generation safe
+   without bumping to Pro. */
 export const config = {
-  runtime: 'nodejs',
-  maxDuration: 30,
+  runtime: 'edge',
 }
