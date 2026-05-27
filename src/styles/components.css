@@ -943,11 +943,9 @@
 
 /* --- Planning progress dots ---------------------------------------------*/
 .planning-progress {
-  position: absolute;
-  top: 14px;
-  right: 0;
   display: flex;
   gap: 6px;
+  align-items: center;
 }
 .planning-progress__dot {
   width: 6px;
@@ -1051,11 +1049,20 @@
   position: sticky;
   top: 0;
   z-index: 6;
-  padding: calc(var(--safe-top) + var(--sp-4)) var(--page-pad-x) var(--sp-3);
+  /* max() keeps the Dynamic Island padding visible in browsers / simulators
+     that don't report a safe area. */
+  padding: calc(max(var(--safe-top), 48px) + var(--sp-3)) var(--page-pad-x)
+    var(--sp-4);
   background: rgba(11, 14, 46, 0.72);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.planning-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
 }
 .planning-header__eyebrow {
   font-size: 12px;
@@ -1069,6 +1076,7 @@
   font-weight: 800;
   letter-spacing: -0.02em;
   margin-top: 4px;
+  margin-bottom: var(--sp-2);
   color: var(--text);
   line-height: 1.25;
   word-break: keep-all;

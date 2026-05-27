@@ -317,14 +317,16 @@ export function PlanningPage() {
   return (
     <div className="page planning-page">
       <header className="planning-header">
-        <BackButton onClick={onBack} />
-        <div className="planning-progress" aria-hidden>
-          {ALL_STEPS.map((s, i) => (
-            <span
-              key={s}
-              className={`planning-progress__dot ${i <= stepIndex ? 'planning-progress__dot--on' : ''}`}
-            />
-          ))}
+        <div className="planning-header__top">
+          <BackButton onClick={onBack} />
+          <div className="planning-progress" aria-hidden>
+            {ALL_STEPS.map((s, i) => (
+              <span
+                key={s}
+                className={`planning-progress__dot ${i <= stepIndex ? 'planning-progress__dot--on' : ''}`}
+              />
+            ))}
+          </div>
         </div>
         <div className="planning-header__eyebrow">목표 세우기</div>
         <h1 className="planning-header__title">{title}</h1>
