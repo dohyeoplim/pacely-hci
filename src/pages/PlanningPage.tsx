@@ -1,18 +1,20 @@
-/* Co-Planning — chat-driven flow (spec §F1).
+/* Co-Planning — chat-driven flow.
 
-   Flow:
-     1. category   — pick category card
-     2. goal       — type the goal sentence; Pacely responds (LLM) and
-                     proposes subjects + day count
-     3. subjects   — refine the LLM-suggested subjects/phases (exam/project)
-     4. period     — pick dates; pre-filled from suggestedDays
-     5. hours      — daily hour budget
-     6. persona    — companion vs coach
-     7. plan       — show generated plan + missions; editable per-day
+   The very first thing the user sees is a single composer:
 
-   The plan-preview step is the heart of Pacely's HCI value: the AI produces
-   a detailed day-by-day breakdown with concrete sub-tasks, then stays
-   editable as a conversation. */
+       "이번엔 어떤 목표를 이루고 싶으세요?"  ← prompt
+       [textarea — user types]                ← input
+
+   On submit, the LLM:
+     · classifies the goal into a category (exam / project / workout / diary / custom)
+     · drafts a companion-toned acknowledgement
+     · proposes subjects / phases (when the category supports them)
+     · suggests a reasonable duration
+
+   The rest of the flow is built on top of that: subjects (if applicable) →
+   dates → daily hours → persona → plan + sub-tasks. Category selection is
+   never an explicit step — if the inference is wrong, a small switcher
+   below the response lets the user override. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -20,7 +22,6 @@ import { useNavigate } from 'react-router-dom'
 import { BackButton } from '../components/BackButton'
 import { Button } from '../components/Button'
 import { Calendar, rangeDays, rangeIsValid } from '../components/Calendar'
-import { CATEGORY_ORDER, CategoryCard } from '../components/CategoryCard'
 import { ChatBubble } from '../components/ChatBubble'
 import { HourPicker } from '../components/HourPicker'
 import { MissionEditSheet } from '../components/MissionEditSheet'
@@ -35,38 +36,15 @@ import { usePacely } from '../lib/store/store'
 import { addDays, todayISO, uid } from '../lib/util'
 import type { GoalCategory, MissionTask, Persona, Plan } from '../types'
 
-type Step =
-  | 'category'
-  | 'goal'
-  | 'subjects'
-  | 'period'
-  | 'hours'
-  | 'persona'
-  | 'plan'
+type Step = 'goal' | 'subjects' | 'period' | 'hours' | 'persona' | 'plan'
 
-const ALL_STEPS: Step[] = [
-  'category',
-  'goal',
-  'subjects',
-  'period',
-  'hours',
-  'persona',
-  'plan',
-]
+const ALL_STEPS: Step[] = ['goal', 'subjects', 'period', 'hours', 'persona', 'plan']
 
 function stepsFor(category: GoalCategory | null): Step[] {
-  if (!category) return ['category']
+  if (!category) return ['goal']
   return ALL_STEPS.filter(
     (s) => s !== 'subjects' || category === 'exam' || category === 'project',
   )
-}
-
-const CATEGORY_PROMPT: Record<GoalCategory, string> = {
-  exam: '시험을 준비할거야.',
-  project: '새 프로젝트를 시작할거야.',
-  workout: '꾸준히 운동할거야.',
-  diary: '매일 일기를 쓸거야.',
-  custom: '',
 }
 
 const CATEGORY_DEFAULT_TITLE: Record<GoalCategory, string> = {
@@ -77,6 +55,14 @@ const CATEGORY_DEFAULT_TITLE: Record<GoalCategory, string> = {
   custom: '나만의 목표',
 }
 
+const CATEGORY_LABEL: Record<GoalCategory, { emoji: string; label: string }> = {
+  exam: { emoji: '📚', label: '시험 / 공부' },
+  project: { emoji: '🛠️', label: '프로젝트' },
+  workout: { emoji: '💪', label: '운동' },
+  diary: { emoji: '📓', label: '일기 / 기록' },
+  custom: { emoji: '✨', label: '직접 입력' },
+}
+
 const SUBJECT_SUGGESTIONS: Record<GoalCategory, string[]> = {
   exam: ['선형대수', '확률통계', '알고리즘', '운영체제', '데이터구조'],
   project: ['리서치', '디자인', '구현', 'QA'],
@@ -85,7 +71,6 @@ const SUBJECT_SUGGESTIONS: Record<GoalCategory, string[]> = {
   custom: [],
 }
 
-/* Companion-tone reactions that play once the plan is generated. */
 const PLAN_INTRO_BY_PERSONA: Record<Persona, [string, string, string]> = {
   gentle: [
     '같이 차근차근 짜봤어요.',
@@ -124,7 +109,7 @@ export function PlanningPage() {
   const { state, createGoal, setPersona } = usePacely()
   const persona: Persona = state.user.personaPreference
 
-  const [step, setStep] = useState<Step>('category')
+  const [step, setStep] = useState<Step>('goal')
   const [category, setCategory] = useState<GoalCategory | null>(null)
   const [subjects, setSubjects] = useState<string[]>([])
   const [goalText, setGoalText] = useState<string>('')
@@ -135,13 +120,10 @@ export function PlanningPage() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [planLoading, setPlanLoading] = useState(false)
 
-  /* Goal-step LLM interaction state. */
   const [goalReaction, setGoalReaction] = useState<GoalReaction | null>(null)
   const [goalParsing, setGoalParsing] = useState(false)
   const [suggestedDays, setSuggestedDays] = useState<number | null>(null)
 
-  /* Draft missions live alongside the plan so the user can edit individual
-     sub-tasks before committing. Regenerated whenever a new plan lands. */
   const [draftMissions, setDraftMissions] = useState<MissionTask[]>([])
   const [reviseOpen, setReviseOpen] = useState(false)
   const [missionSheet, setMissionSheet] = useState<DraftMissionSheet | null>(
@@ -149,12 +131,11 @@ export function PlanningPage() {
   )
 
   const bodyRef = useRef<HTMLDivElement>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
   const goalTextareaRef = useRef<HTMLTextAreaElement>(null)
   const steps = useMemo(() => stepsFor(category), [category])
   const stepIndex = steps.indexOf(step)
 
-  /* Grow the goal-input textarea with its content. */
+  /* Goal-input textarea autosize. */
   useEffect(() => {
     const el = goalTextareaRef.current
     if (!el) return
@@ -162,18 +143,14 @@ export function PlanningPage() {
     el.style.height = `${el.scrollHeight}px`
   }, [pendingText, step])
 
-  /* When entering the period step, pre-fill the calendar from the LLM's
-     suggested day count (falls back to today + 14 if no suggestion).
-     Skips if the user has already picked a range. */
+  /* Pre-fill the calendar from the LLM's suggested days when first entering
+     the period step. */
   useEffect(() => {
     if (step !== 'period') return
     if (range.start) return
     const days = suggestedDays ?? 14
     const offset = Math.max(0, days - 1)
-    setRange({
-      start: todayISO(),
-      end: addDays(todayISO(), offset),
-    })
+    setRange({ start: todayISO(), end: addDays(todayISO(), offset) })
   }, [step, range.start, suggestedDays])
 
   const title = useMemo(() => {
@@ -201,12 +178,10 @@ export function PlanningPage() {
         })
         if (cancelled) return
         const planned = { ...p, persona: chosenPersona }
-
         const missions = agents.planner.generateMissions
           ? await agents.planner.generateMissions(planned, category)
           : generateMissions(planned, category)
         if (cancelled) return
-
         setPlan(planned)
         setDraftMissions(
           missions.length > 0 ? missions : generateMissions(planned, category),
@@ -238,32 +213,40 @@ export function PlanningPage() {
     }
   }, [step, plan, category, goalText, range, hours, chosenPersona, subjects])
 
-  /* Auto-scroll the chat to the latest bubble. */
+  /* Auto-scroll the chat to the latest bubble — robust against iOS Safari
+     quirks, route-in animation, and async LLM responses. */
   useEffect(() => {
-    const scrollToBottom = () => {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          bottomRef.current?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'end',
-          })
-        })
-      })
-    }
-
-    scrollToBottom()
-
     const body = bodyRef.current
-    if (!body || typeof ResizeObserver === 'undefined') return
-    let lastHeight = body.getBoundingClientRect().height
-    const ro = new ResizeObserver(() => {
-      const h = body.getBoundingClientRect().height
-      if (h > lastHeight + 1) scrollToBottom()
-      lastHeight = h
-    })
-    ro.observe(body)
-    return () => ro.disconnect()
-  }, [step, plan, goalReaction])
+    if (!body) return
+    const root = document.scrollingElement || document.documentElement
+    let scheduled: number[] = []
+    const clearScheduled = () => {
+      scheduled.forEach((id) => window.clearTimeout(id))
+      scheduled = []
+    }
+    const scrollNow = () => {
+      root.scrollTo({ top: root.scrollHeight, behavior: 'smooth' })
+    }
+    const burst = () => {
+      clearScheduled()
+      window.requestAnimationFrame(scrollNow)
+      scheduled.push(
+        window.setTimeout(scrollNow, 80),
+        window.setTimeout(scrollNow, 240),
+      )
+    }
+    burst()
+    const mo = new MutationObserver(burst)
+    mo.observe(body, { childList: true, subtree: true, characterData: true })
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(burst) : null
+    ro?.observe(body)
+    return () => {
+      clearScheduled()
+      mo.disconnect()
+      ro?.disconnect()
+    }
+  }, [step])
 
   const goToNext = () => {
     const i = steps.indexOf(step)
@@ -280,48 +263,35 @@ export function PlanningPage() {
     setStep(steps[i - 1])
   }
 
-  const onCategoryPick = (c: GoalCategory) => {
-    setCategory(c)
-    setGoalText(CATEGORY_PROMPT[c])
-    setPendingText(CATEGORY_PROMPT[c])
-    setSubjects([])
-    setGoalReaction(null)
-    setSuggestedDays(null)
-    setStep(stepsFor(c)[1]) // 'goal'
-  }
-
-  /* Confirm the goal text and ask Pacely to react. Pacely's response drives
-     the subject suggestions + day count pre-fill in later steps. */
-  const onConfirmGoal = async () => {
-    if (!category) return
-    const text = pendingText.trim() || CATEGORY_PROMPT[category]
+  /* Submit the user's goal sentence — LLM infers category, drafts a reply,
+     and suggests subjects + duration. */
+  const onSubmitGoal = async () => {
+    const text = pendingText.trim()
+    if (!text) return
     setGoalText(text)
-    setPendingText(text)
-
     setGoalParsing(true)
     try {
       const agent = getAgents().planner
       const result = agent.parseGoal
-        ? await agent.parseGoal({
-            goalText: text,
-            category,
-            persona: chosenPersona,
-          })
+        ? await agent.parseGoal({ goalText: text, persona: chosenPersona })
         : await createMockAgents().planner.parseGoal!({
             goalText: text,
-            category,
             persona: chosenPersona,
           })
+      setCategory(result.category)
       setGoalReaction({ greeting: result.greeting, followUp: result.followUp })
       setSuggestedDays(result.suggestedDays)
       if (
-        (category === 'exam' || category === 'project') &&
+        (result.category === 'exam' || result.category === 'project') &&
         result.suggestedSubjects.length > 0
       ) {
         setSubjects(result.suggestedSubjects)
+      } else {
+        setSubjects([])
       }
     } catch (err) {
       console.warn('[PlanningPage] parseGoal failed', err)
+      setCategory('custom')
       setGoalReaction({
         greeting:
           chosenPersona === 'gentle'
@@ -332,6 +302,14 @@ export function PlanningPage() {
     } finally {
       setGoalParsing(false)
     }
+  }
+
+  /* User can override the LLM's inferred category via a small chip switcher. */
+  const onSwitchCategory = (next: GoalCategory) => {
+    setCategory(next)
+    /* Reset subject suggestions only if switching to a category that
+       doesn't carry the previous list naturally. */
+    if (next !== 'exam' && next !== 'project') setSubjects([])
   }
 
   const onStartPlan = () => {
@@ -346,7 +324,6 @@ export function PlanningPage() {
     navigate('/day-start')
   }
 
-  /* Open the inline plan revise sheet. */
   const onApplyRevise = (next: {
     hours: number
     subjects: string[]
@@ -355,11 +332,10 @@ export function PlanningPage() {
     setHours(next.hours)
     setSubjects(next.subjects)
     setChosenPersona(next.persona)
-    setPlan(null) // triggers regeneration
+    setPlan(null)
     setDraftMissions([])
   }
 
-  /* Per-day mission editing handlers. */
   const handleSaveMission = (input: {
     id?: string
     title: string
@@ -396,7 +372,7 @@ export function PlanningPage() {
   }
 
   const onBack = () => {
-    if (step === 'category') navigate('/welcome')
+    if (step === 'goal') navigate('/welcome')
     else goToPrev()
   }
 
@@ -417,24 +393,7 @@ export function PlanningPage() {
       </header>
 
       <div className="planning-body" ref={bodyRef}>
-        {step === 'category' && (
-          <>
-            <ChatBubble from="pacely">
-              이번엔 어떤 목표를 이루고 싶으세요?
-            </ChatBubble>
-            <div className="category-list">
-              {CATEGORY_ORDER.map((c) => (
-                <CategoryCard
-                  key={c}
-                  category={c}
-                  onClick={() => onCategoryPick(c)}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-        {step === 'goal' && category && (
+        {step === 'goal' && (
           <>
             <ChatBubble from="pacely">
               이번엔 어떤 목표를 이루고 싶으세요?
@@ -451,6 +410,17 @@ export function PlanningPage() {
                 rows={1}
                 autoFocus
                 onChange={(e) => setPendingText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === 'Enter' &&
+                    !e.shiftKey &&
+                    !goalParsing &&
+                    pendingText.trim()
+                  ) {
+                    e.preventDefault()
+                    void onSubmitGoal()
+                  }
+                }}
               />
             </div>
 
@@ -462,13 +432,32 @@ export function PlanningPage() {
               </ChatBubble>
             )}
 
-            {goalReaction && !goalParsing && (
+            {!goalParsing && goalReaction && (
               <>
                 <ChatBubble from="pacely">{goalReaction.greeting}</ChatBubble>
                 {goalReaction.followUp && (
                   <ChatBubble from="pacely" hideAvatar>
                     {goalReaction.followUp}
                   </ChatBubble>
+                )}
+                {category && (
+                  <div className="category-pill-row">
+                    <span className="t-micro">분류</span>
+                    {(
+                      ['exam', 'project', 'workout', 'diary', 'custom'] as GoalCategory[]
+                    ).map((c) => (
+                      <button
+                        key={c}
+                        className={`category-pill ${
+                          c === category ? 'category-pill--on' : ''
+                        }`}
+                        onClick={() => onSwitchCategory(c)}
+                      >
+                        <span aria-hidden>{CATEGORY_LABEL[c].emoji}</span>
+                        <span>{CATEGORY_LABEL[c].label}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </>
             )}
@@ -478,7 +467,7 @@ export function PlanningPage() {
                 <Button
                   block
                   disabled={!pendingText.trim() || goalParsing}
-                  onClick={onConfirmGoal}
+                  onClick={() => void onSubmitGoal()}
                 >
                   {goalParsing ? '정리 중…' : 'Pacely에게 보여주기'}
                 </Button>
@@ -491,7 +480,7 @@ export function PlanningPage() {
                     block
                     variant="ghost"
                     disabled={goalParsing}
-                    onClick={onConfirmGoal}
+                    onClick={() => void onSubmitGoal()}
                   >
                     다시 정리해줘
                   </Button>
@@ -673,8 +662,6 @@ export function PlanningPage() {
             </div>
           </>
         )}
-
-        <div ref={bottomRef} className="planning-body__sentinel" aria-hidden />
       </div>
 
       {category && (
