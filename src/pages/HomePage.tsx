@@ -5,9 +5,9 @@ import { DDayBadge } from '../components/DDayBadge'
 import { MissionEditSheet } from '../components/MissionEditSheet'
 import { MissionList } from '../components/MissionList'
 import { NotificationToast } from '../components/NotificationToast'
-import { PacelyCoachCard } from '../components/PacelyCoachCard'
 import { PwaPrompts } from '../components/PwaPrompts'
 import { ProgressRing } from '../components/ProgressRing'
+import { usePacelyMessage } from '../lib/pacelyMessage'
 import { usePacely } from '../lib/store/store'
 import { dDay, formatHours, fromISO, timeOfDay, todayISO } from '../lib/util'
 import type { MissionTask } from '../types'
@@ -18,12 +18,6 @@ const GREETING_BY_TIME: Record<ReturnType<typeof timeOfDay>, string> = {
   afternoon: '좋은 오후예요',
   evening: '좋은 저녁이에요',
   night: '늦은 시간이에요',
-}
-const SUB_BY_TIME: Record<ReturnType<typeof timeOfDay>, string> = {
-  morning: '오늘도 함께 달려요 ☀️',
-  afternoon: '오늘 페이스 어때요? 🚀',
-  evening: '오늘도 수고했어요 🌙',
-  night: '가볍게 마무리해요 🌌',
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -76,6 +70,10 @@ export function HomePage() {
     [currentGoal, today],
   )
   const pace = useMemo(() => comparePace(currentGoal), [currentGoal])
+  const coachMessage = usePacelyMessage(
+    currentGoal ?? ({} as never),
+    state.user.personaPreference,
+  )
 
   if (!currentGoal) return <Navigate to="/welcome" replace />
   if (currentGoal.status === 'finished') return <Navigate to="/finish" replace />
@@ -85,7 +83,6 @@ export function HomePage() {
   const greeting = state.user.name
     ? `${state.user.name}님, ${GREETING_BY_TIME[tod]}`
     : GREETING_BY_TIME[tod]
-  const sub = SUB_BY_TIME[tod]
   const initial = state.user.name?.[0]
   const doneCount = todays.filter((m) => m.completed).length
   const allDone = todays.length > 0 && doneCount === todays.length
@@ -102,7 +99,7 @@ export function HomePage() {
         <div>
           <div className="home-head__date">{formatHeadDate(today)}</div>
           <h1 className="home-head__greet">{greeting}</h1>
-          <div className="home-head__sub t-caption">{sub}</div>
+          <div className="home-head__coach">{coachMessage}</div>
         </div>
         <div className="home-head__avatar" aria-hidden>
           {initial ?? (
@@ -180,11 +177,6 @@ export function HomePage() {
           <span>작업 추가</span>
         </button>
       </section>
-
-      <PacelyCoachCard
-        goal={currentGoal}
-        persona={state.user.personaPreference}
-      />
 
       {allDone ? (
         <section className="home-status home-status--done">

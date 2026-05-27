@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 
-import { PacelyAvatar } from './PacelyAvatar'
 import type { Goal, Persona } from '../types'
-import { timeOfDay, todayISO } from '../lib/util'
+import { timeOfDay, todayISO } from './util'
 
 type Tod = ReturnType<typeof timeOfDay>
 type Context =
@@ -13,9 +12,7 @@ type Context =
   | 'idle-evening'
   | 'streak-keep'
 
-type Line = string
-
-const COACH_LINES: Record<Persona, Record<Context, Record<Tod, Line[]>>> = {
+const LINES: Record<Persona, Record<Context, Record<Tod, string[]>>> = {
   gentle: {
     kickoff: {
       morning: [
@@ -163,9 +160,7 @@ function pickContext(goal: Goal): Context {
   const tod = timeOfDay()
   const streak = goal.progress.currentStreak
 
-  if (total === 0) {
-    return streak > 0 ? 'streak-keep' : 'kickoff'
-  }
+  if (total === 0) return streak > 0 ? 'streak-keep' : 'kickoff'
   if (ratio >= 1) return 'celebrate'
   if (ratio >= 0.66) return 'closing'
   if (done === 0) {
@@ -175,36 +170,14 @@ function pickContext(goal: Goal): Context {
   return 'midway'
 }
 
-function pickLine(persona: Persona, goal: Goal, seed: number): string {
-  const ctx = pickContext(goal)
-  const tod = timeOfDay()
-  let lines = COACH_LINES[persona][ctx][tod]
-  if (!lines || lines.length === 0) {
-    lines = COACH_LINES[persona].kickoff[tod]
-  }
-  return lines[seed % lines.length]
-}
-
-interface PacelyCoachCardProps {
-  goal: Goal
-  persona: Persona
-  seed?: number
-}
-
-export function PacelyCoachCard({ goal, persona, seed }: PacelyCoachCardProps) {
-  const message = useMemo(() => {
-    const effectiveSeed =
-      seed ?? Math.floor(new Date().getDate() + new Date().getHours() / 3)
-    return pickLine(persona, goal, effectiveSeed)
-  }, [goal, persona, seed])
-
-  return (
-    <section className={`coach-card coach-card--${persona}`}>
-      <PacelyAvatar size={36} />
-      <div className="coach-card__body">
-        <div className="coach-card__tag">Pacely</div>
-        <div className="coach-card__msg">{message}</div>
-      </div>
-    </section>
-  )
+export function usePacelyMessage(goal: Goal, persona: Persona): string {
+  return useMemo(() => {
+    const ctx = pickContext(goal)
+    const tod = timeOfDay()
+    const list = LINES[persona][ctx][tod]
+    const lines =
+      list && list.length > 0 ? list : LINES[persona].kickoff[tod]
+    const seed = Math.floor(new Date().getDate() + new Date().getHours() / 3)
+    return lines[seed % lines.length]
+  }, [goal, persona])
 }
