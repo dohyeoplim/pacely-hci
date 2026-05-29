@@ -33,13 +33,23 @@ interface RawMissions {
   }[]
 }
 
-function planSystemPrompt(): string {
+function planSystemPrompt(category: GoalCategory): string {
+  const milestoneBlock =
+    category === 'exam'
+      ? `- 마일스톤은 정확히 4개. 시험공부 장기 태스크는 반드시 아래 4단계 구조로 순서대로 만든다:
+  1) "범위 정리 & 계획" — 시험 과목·범위 파악, 과목별 우선순위 정하기, 가용 시간 배분.
+  2) "개념 학습 (1회독)" — 과목별 핵심 개념 정리, 요약·정리 노트 작성, 1회독 완료.
+  3) "문제 풀이 & 복습" — 기출·연습문제 풀이, 오답 정리, 약한 부분 보완.
+  4) "마무리 점검" — 최종 요약 복습, 약점 재점검, 학습 진행 자가 점검.
+  각 마일스톤 cadence에는 그 단계에서 다룰 핵심 활동을 한 줄로 요약. week 값은 전체 기간을 4구간으로 나눠 1→2→3→4 순서로 배치.`
+      : `- 마일스톤은 3개 (간결 cadence).`
+
   return `너는 Pacely 한국어 AI 페이스메이커. 목표를 받아 마일스톤 + 일별 시간 배분만 만들어. 미션은 다음 단계에서 따로 만드니까 여기선 제외.
 
 규칙:
 - 한국어. JSON만 반환.
 - phase: 첫 40% phase 0, 중간 40% phase 1, 마지막 20% phase 2.
-- 마일스톤은 3개 (간결 cadence).
+${milestoneBlock}
 - summary는 25자 이내, 동사 위주.
 
 스키마:
@@ -51,6 +61,10 @@ function planSystemPrompt(): string {
 
 function planUserPrompt(input: PlannerInput): string {
   const totalDays = Math.max(daysBetween(input.startDate, input.endDate) + 1, 1)
+  const milestoneTail =
+    input.category === 'exam'
+      ? '마일스톤 4개 (범위 정리 & 계획 → 개념 학습 1회독 → 문제 풀이 & 복습 → 마무리 점검 순서 고정).'
+      : '마일스톤 3개.'
   return `목표: "${input.goalText}"
 카테고리: ${input.category}
 기간: ${input.startDate} ~ ${input.endDate} (총 ${totalDays}일)
@@ -58,7 +72,7 @@ function planUserPrompt(input: PlannerInput): string {
 페르소나: ${input.persona}
 ${input.subjects && input.subjects.length > 0 ? `주제/단계: ${input.subjects.join(', ')}` : ''}
 
-${totalDays}일 모두 dailyAllocation에 포함. 마일스톤 3개.`
+${totalDays}일 모두 dailyAllocation에 포함. ${milestoneTail}`
 }
 
 function missionRefinementSystem(persona: Persona): string {
@@ -217,7 +231,7 @@ export class OpenAIPlanner implements PlannerAgent {
 
   async decomposeGoal(input: PlannerInput): Promise<Plan> {
     const messages: ChatMessage[] = [
-      { role: 'system', content: planSystemPrompt() },
+      { role: 'system', content: planSystemPrompt(input.category) },
       { role: 'user', content: planUserPrompt(input) },
     ]
     const raw = await callLLM(messages, {
