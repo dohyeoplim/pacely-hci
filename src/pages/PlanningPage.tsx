@@ -7,6 +7,7 @@ import { Button } from '../components/Button'
 import { Calendar, rangeDays, rangeIsValid } from '../components/Calendar'
 import { ChatBubble } from '../components/ChatBubble'
 import { ChatComposer } from '../components/ChatComposer'
+import { DayMissionsSheet } from '../components/DayMissionsSheet'
 import { HourPicker } from '../components/HourPicker'
 import { MissionEditSheet } from '../components/MissionEditSheet'
 import { PersonaCard } from '../components/PersonaCard'
@@ -105,6 +106,7 @@ export function PlanningPage() {
   const [missionSheet, setMissionSheet] = useState<DraftMissionSheet | null>(
     null,
   )
+  const [daySheetDate, setDaySheetDate] = useState<string | null>(null)
 
   const [preBurden, setPreBurden] = useState<number | null>(null)
   const [surveyOpen, setSurveyOpen] = useState(false)
@@ -606,8 +608,9 @@ export function PlanningPage() {
                 </ChatBubble>
                 <PlanDailyStrip
                   plan={plan}
+                  windowSize={plan.dailyAllocation.length}
                   missions={draftMissions}
-                  onPickDay={(date) => setMissionSheet({ mode: 'add', date })}
+                  onPickDay={(date) => setDaySheetDate(date)}
                 />
                 <ChatBubble from="pacely" hideAvatar>
                   {PLAN_INTRO_BY_PERSONA[chosenPersona][2]}
@@ -656,6 +659,21 @@ export function PlanningPage() {
           subjectSuggestions={SUBJECT_SUGGESTIONS[category]}
           onClose={() => setReviseOpen(false)}
           onApply={onApplyRevise}
+        />
+      )}
+
+      {plan && daySheetDate && (
+        <DayMissionsSheet
+          open={!!daySheetDate}
+          date={daySheetDate}
+          allocation={plan.dailyAllocation.find((d) => d.date === daySheetDate)}
+          missions={draftMissions.filter((m) => m.date === daySheetDate)}
+          onAdd={() =>
+            setMissionSheet({ mode: 'add', date: daySheetDate ?? undefined })
+          }
+          onEdit={(m) => setMissionSheet({ mode: 'edit', mission: m })}
+          onDelete={handleDeleteMission}
+          onClose={() => setDaySheetDate(null)}
         />
       )}
 

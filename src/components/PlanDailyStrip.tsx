@@ -20,6 +20,7 @@ export function PlanDailyStrip({
   const subjects = plan.subjects
   const focus = (i: number) =>
     subjects.length > 0 ? subjects[i % subjects.length] : null
+  const showsAll = days.length >= plan.dailyAllocation.length
 
   const countFor = (date: string): number | null => {
     if (!missions) return null
@@ -29,8 +30,12 @@ export function PlanDailyStrip({
   return (
     <div className="plan-strip">
       <div className="plan-strip__head">
-        <span className="t-caption">이번 주 일정 미리보기</span>
-        <span className="t-micro">{plan.weeks}주 플랜 · 처음 {days.length}일</span>
+        <span className="t-caption">
+          {showsAll ? '전체 일정' : '이번 주 일정 미리보기'}
+        </span>
+        <span className="t-micro">
+          {plan.weeks}주 플랜 · {showsAll ? `${days.length}일` : `처음 ${days.length}일`}
+        </span>
       </div>
       <ul className="plan-strip__list">
         {days.map((d, i) => {

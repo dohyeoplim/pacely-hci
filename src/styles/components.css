@@ -2953,6 +2953,90 @@
   margin-top: 2px;
 }
 
+/* --- Day missions sheet -------------------------------------------------*/
+.day-missions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+}
+.day-missions__meta {
+  color: var(--text-tertiary);
+  letter-spacing: 0.005em;
+}
+.day-missions__summary {
+  padding: 10px 14px;
+  background: rgba(58, 72, 192, 0.14);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.day-missions__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.day-missions__item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.day-missions__item-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 12px 14px;
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.day-missions__item-main:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.day-missions__item-main:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+.day-missions__item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+  line-height: 1.35;
+}
+.day-missions__item-sub {
+  color: var(--text-tertiary);
+}
+.day-missions__item-del {
+  width: 40px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.day-missions__item-del:hover {
+  color: var(--text);
+}
+
 /* --- Plan revise sheet --------------------------------------------------*/
 .plan-revise {
   display: flex;
