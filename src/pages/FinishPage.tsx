@@ -53,7 +53,7 @@ export function FinishPage() {
   return (
     <div className="page finish-page">
       <header className="finish-top">
-        <BackButton onClick={() => navigate('/home')} />
+        <BackButton />
       </header>
 
       <Confetti />
@@ -135,6 +135,9 @@ export function FinishPage() {
             다음 목표
           </Button>
         </div>
+        <Button block variant="ghost" onClick={() => navigate('/home')}>
+          홈으로 가기
+        </Button>
       </div>
     </div>
   )

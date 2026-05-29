@@ -76,7 +76,6 @@ export function HomePage() {
   )
 
   if (!currentGoal) return <Navigate to="/welcome" replace />
-  if (currentGoal.status === 'finished') return <Navigate to="/finish" replace />
 
   const remaining = dDay(currentGoal.endDate)
   const tod = timeOfDay()
