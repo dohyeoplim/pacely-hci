@@ -3427,7 +3427,7 @@
 
 /* --- Calendar page -------------------------------------------------------*/
 .calendar-page {
-  padding-bottom: calc(var(--tabbar-height) + var(--sp-4));
+  padding-top: calc(max(var(--safe-top), 48px) + var(--sp-3));
 }
 .cal-toggle {
   display: flex;
