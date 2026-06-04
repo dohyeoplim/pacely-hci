@@ -14,6 +14,7 @@ import { PersonaCard } from '../components/PersonaCard'
 import { PlanCard } from '../components/PlanCard'
 import { PlanDailyStrip } from '../components/PlanDailyStrip'
 import { PlanLoading } from '../components/PlanLoading'
+import { PlanOriginalSheet } from '../components/PlanOriginalSheet'
 import { PlanReviseSheet } from '../components/PlanReviseSheet'
 import { PreBurdenPrompt } from '../components/PreBurdenPrompt'
 import { createMockAgents, getAgents } from '../lib/agents'
@@ -46,6 +47,20 @@ const CATEGORY_LABEL: Record<GoalCategory, { emoji: string; label: string }> = {
   diary: { emoji: '📓', label: '일기 / 기록' },
   custom: { emoji: '✨', label: '직접 입력' },
 }
+
+// Shown as a worked example so users learn the structured format that gives
+// Pacely the most to work with (item 1).
+const GOAL_PLACEHOLDER = `목표: 운영체제 기말 대비
+기간: 약 2주
+현재 상황: 강의노트만 있고 아직 1회독 못 함
+하루 가능 시간: 4시간
+집중 포인트: 기출·연습 문제를 많이 풀어보는 게 중요해`
+
+const GOAL_TEMPLATE = `목표:
+기간: 약
+현재 상황:
+하루 가능 시간:
+집중 포인트: `
 
 const SUBJECT_SUGGESTIONS: Record<GoalCategory, string[]> = {
   exam: ['선형대수', '확률통계', '알고리즘', '운영체제', '데이터구조'],
@@ -89,6 +104,11 @@ export function PlanningPage() {
   const [hours, setHours] = useState<number>(3)
   const [chosenPersona, setChosenPersona] = useState<Persona>(persona)
   const [plan, setPlan] = useState<Plan | null>(null)
+  // Pacely's first auto plan, frozen so the user can compare it against any
+  // edits they make (item 4).
+  const [originalPlan, setOriginalPlan] = useState<Plan | null>(null)
+  const [originalSheetOpen, setOriginalSheetOpen] = useState(false)
+  const [reviseBusy, setReviseBusy] = useState(false)
   const [planStatus, setPlanStatus] = useState<
     'idle' | 'running' | 'completing' | 'timeout'
   >('idle')
@@ -195,6 +215,8 @@ export function PlanningPage() {
         setTimeout(() => {
           if (cancelled) return
           setPlan(planned)
+          // First successful generation becomes the frozen "Pacely 원안".
+          setOriginalPlan((prev) => prev ?? planned)
           setDraftMissions(
             missions.length > 0 ? missions : generateMissions(planned, category),
           )
@@ -298,6 +320,7 @@ export function PlanningPage() {
       title,
       category,
       plan: finalPlan,
+      originalPlan: originalPlan ?? undefined,
       missions: draftMissions,
     })
 
@@ -361,6 +384,37 @@ export function PlanningPage() {
     setChosenPersona(next.persona)
     setPlan(null)
     setDraftMissions([])
+  }
+
+  /* Conversational revision: send the free-text request straight to the
+     planner, regenerate missions, and keep the frozen original for comparison.
+     Unlike onApplyRevise this does not null the plan (no full re-decompose) —
+     it reshapes the existing one. */
+  const onRevisePrompt = async (instruction: string) => {
+    if (!plan || !category || reviseBusy) return
+    setReviseBusy(true)
+    metrics.incRevision()
+    logEvent({ type: 'plan_revised', payload: { instruction } })
+    try {
+      const agents = getAgents()
+      const revised = agents.planner.revisePlan
+        ? await agents.planner.revisePlan({ plan, instruction, category })
+        : plan
+      const withPersona: Plan = { ...revised, persona: chosenPersona }
+      const missions = agents.planner.generateMissions
+        ? await agents.planner.generateMissions(withPersona, category)
+        : generateMissions(withPersona, category)
+      setOriginalPlan((prev) => prev ?? plan)
+      setPlan(withPersona)
+      setDraftMissions(
+        missions.length > 0 ? missions : generateMissions(withPersona, category),
+      )
+      setReviseOpen(false)
+    } catch (err) {
+      console.warn('[PlanningPage] revisePlan failed', err)
+    } finally {
+      setReviseBusy(false)
+    }
   }
 
   const handleSaveMission = (input: {
@@ -447,14 +501,37 @@ export function PlanningPage() {
             )}
 
             {!goalText && !goalParsing && (
-              <ChatComposer
-                value={pendingText}
-                placeholder="예: 2주 안에 운영체제 시험 준비하기"
-                disabled={goalParsing}
-                autoFocus
-                onChange={setPendingText}
-                onSubmit={() => void onSubmitGoal()}
-              />
+              <>
+                <ChatBubble from="pacely" hideAvatar>
+                  이런 식으로 적어주면 더 정확하게 짜드려요:
+                </ChatBubble>
+                <ChatBubble from="pacely" hideAvatar>
+                  <div className="goal-example">
+                    {GOAL_PLACEHOLDER.split('\n').map((line) => (
+                      <span key={line} className="goal-example__line">
+                        {line}
+                      </span>
+                    ))}
+                  </div>
+                </ChatBubble>
+                <ChatComposer
+                  value={pendingText}
+                  placeholder="여기에 자유롭게 적어주세요"
+                  disabled={goalParsing}
+                  autoFocus
+                  onChange={setPendingText}
+                  onSubmit={() => void onSubmitGoal()}
+                />
+                {!pendingText.trim() && (
+                  <button
+                    type="button"
+                    className="planning-template-fill"
+                    onClick={() => setPendingText(GOAL_TEMPLATE)}
+                  >
+                    양식 채워서 시작하기
+                  </button>
+                )}
+              </>
             )}
 
             {goalParsing && (
@@ -619,6 +696,15 @@ export function PlanningPage() {
             )}
             {plan && (
               <div className="planning-cta planning-cta--stack">
+                {originalPlan && plan.id !== originalPlan.id && (
+                  <button
+                    type="button"
+                    className="planning-original-link"
+                    onClick={() => setOriginalSheetOpen(true)}
+                  >
+                    내가 수정한 계획이에요 · 페이슬리 원안 보기 →
+                  </button>
+                )}
                 <Button block onClick={onStartPlan}>
                   이 계획으로 시작하기
                 </Button>
@@ -657,8 +743,18 @@ export function PlanningPage() {
           initialPersona={chosenPersona}
           showSubjects={category === 'exam' || category === 'project'}
           subjectSuggestions={SUBJECT_SUGGESTIONS[category]}
+          revising={reviseBusy}
           onClose={() => setReviseOpen(false)}
           onApply={onApplyRevise}
+          onRevisePrompt={(instruction) => void onRevisePrompt(instruction)}
+        />
+      )}
+
+      {originalPlan && (
+        <PlanOriginalSheet
+          open={originalSheetOpen}
+          original={originalPlan}
+          onClose={() => setOriginalSheetOpen(false)}
         />
       )}
 

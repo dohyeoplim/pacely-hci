@@ -35,12 +35,12 @@ const PERSONA_VOICE: Record<Persona, string> = {
   gentle:
     '동반자형 — 따뜻하고 부드러운 말투. "~요" 체. 1~2 문장, 80자 이내.',
   strict:
-    '코치형 — 단호하고 명확한 말투. "~하세요" / "~합시다" 체. 1~2 문장, 80자 이내. 이모지 금지.',
+    '엄격한 코치형 — 군더더기 없이 단호하고 강하게 밀어붙인다. 명령형 "~하세요/~합니다/지금 하세요" 체. 위로·애교·물음표·이모지 금지. 변명을 허용하지 않는 어조. 1~2 문장, 80자 이내.',
 }
 
 const TRIGGER_FRAMING: Record<TriggerCategory, string> = {
   entry: '오늘 첫 미션 진입을 유도하는 메시지.',
-  milestone: '마일스톤 / 절반 지점 도달 축하 메시지.',
+  milestone: '오늘 할당된 미션을 전부 끝낸 것을 인정·격려하는 메시지. "절반"이라는 표현은 쓰지 말 것.',
   stats: '높은 완료율을 데이터 기반으로 격려.',
   dday: 'D-day가 다가오는 상황에 대한 페이스 조정 메시지.',
   procrastination: '3회 이상 미룬 패턴에 대한 부드러운 재계획 권유.',
@@ -85,7 +85,7 @@ export class OpenAIAdjuster implements AdjusterAgent {
       {
         role: 'system',
         content:
-          '너는 Pacely라는 한국어 AI 페이스메이커의 알림 메시지를 만든다. 한 번에 한 문장만, 80자 이내.',
+          '너는 Pacely라는 한국어 AI 페이스메이커의 알림 메시지를 만든다. 한 번에 한 문장만, 80자 이내. 지정된 페르소나 어조를 반드시 그대로 지킨다 — 특히 엄격한 코치는 절대 부드럽게 쓰지 않는다.',
       },
       { role: 'user', content: notiPrompt(ctx, trigger, persona) },
     ]

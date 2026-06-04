@@ -59,6 +59,10 @@ export interface Goal {
   startDate: ISODate
   endDate: ISODate
   plan: Plan
+  /** Pacely's first auto-generated plan, kept untouched so the user can always
+      compare their revisions against the original. Undefined for legacy goals
+      and goals that were never revised. */
+  originalPlan?: Plan
   missions: MissionTask[]
   progress: Progress
   status: GoalStatus

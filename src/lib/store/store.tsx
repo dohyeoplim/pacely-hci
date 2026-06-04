@@ -290,6 +290,7 @@ interface PacelyContextValue {
     title: string
     category: GoalCategory
     plan: Plan
+    originalPlan?: Plan
     missions?: MissionTask[]
   }) => Goal
   installGoal: (goal: Goal) => void
@@ -457,7 +458,7 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
       setPersona: (persona) => dispatch({ type: 'SET_PERSONA', persona }),
       setName: (name) => dispatch({ type: 'SET_NAME', name }),
 
-      createGoal: ({ title, category, plan, missions }) => {
+      createGoal: ({ title, category, plan, originalPlan, missions }) => {
         const goal: Goal = {
           id: uid('goal'),
           title,
@@ -465,6 +466,8 @@ export function PacelyProvider({ children }: { children: ReactNode }) {
           startDate: plan.period.startDate,
           endDate: plan.period.endDate,
           plan,
+          originalPlan:
+            originalPlan && originalPlan.id !== plan.id ? originalPlan : undefined,
           missions: missions ?? generateMissions(plan, category),
           progress: emptyProgress(),
           status: 'active',

@@ -3294,3 +3294,285 @@
 .research-notion__status--err {
   color: var(--danger);
 }
+
+/* --- Planning: structured goal template + original-plan link -------------*/
+.planning-template-fill {
+  align-self: flex-start;
+  margin-top: var(--sp-2);
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--dur-fast);
+}
+.planning-template-fill:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border-color: var(--navy-300);
+}
+.planning-original-link {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+.planning-original-link:active {
+  opacity: 0.7;
+}
+
+/* --- Plan revise: conversational request box ----------------------------*/
+.plan-revise__chat {
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-soft);
+}
+.plan-revise__hint {
+  margin: -2px 0 8px;
+  color: var(--text-tertiary);
+}
+.plan-revise__thinking {
+  margin-top: 8px;
+  color: var(--pacely);
+  font-weight: 600;
+}
+.plan-revise__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.plan-revise__chip {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.plan-revise__chip:active {
+  transform: scale(0.97);
+}
+
+/* --- Plan original sheet -------------------------------------------------*/
+.plan-original__note {
+  color: var(--text-tertiary);
+  margin-bottom: var(--sp-3);
+}
+.plan-original__section {
+  margin-bottom: var(--sp-4);
+}
+.plan-original__section .t-caption {
+  margin-bottom: 8px;
+}
+.plan-original__milestones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-original__milestone {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+}
+.plan-original__milestone-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.plan-original__days {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.plan-original__day {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.plan-original__day-date {
+  flex-shrink: 0;
+  width: 52px;
+  color: var(--text-tertiary);
+}
+.plan-original__day-summary {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.plan-original__day-hours {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+/* --- Home rings legend ---------------------------------------------------*/
+.home-rings__legend {
+  text-align: center;
+  color: var(--text-tertiary);
+  margin: -2px 0 var(--sp-3);
+  padding: 0 var(--sp-4);
+  line-height: 1.4;
+}
+
+/* --- Calendar page -------------------------------------------------------*/
+.calendar-page {
+  padding-bottom: calc(var(--tabbar-height) + var(--sp-4));
+}
+.cal-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-pill);
+  margin-bottom: var(--sp-3);
+}
+.cal-toggle__btn {
+  flex: 1;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--dur-fast);
+}
+.cal-toggle__btn--on {
+  background: var(--navy-500);
+  color: #fff;
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.cal-nav__btn {
+  width: 36px;
+  height: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+}
+.cal-nav__btn:active {
+  transform: scale(0.96);
+}
+.cal-nav__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cal-grid-head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+.cal-grid-head__cell {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 0 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.cal-grid--week .cal-cell {
+  aspect-ratio: auto;
+  min-height: 56px;
+}
+.cal-cell--plan {
+  background: var(--surface);
+  border-color: var(--border-soft);
+  color: var(--text);
+}
+.cal-cell--dim {
+  opacity: 0.32;
+}
+.cal-cell--today .cal-cell__num {
+  color: var(--navy-200);
+  font-weight: 800;
+}
+.cal-cell--sel {
+  border-color: var(--navy-300);
+  background: var(--surface-hover);
+}
+.cal-cell__num {
+  font-variant-numeric: tabular-nums;
+}
+.cal-cell__bar {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.cal-cell__bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--you), var(--pacely));
+}
+.cal-day {
+  margin-top: var(--sp-4);
+}
+.cal-day__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.cal-day__summary {
+  margin-bottom: var(--sp-2);
+  color: var(--text-secondary);
+}
+.cal-day__empty {
+  padding: var(--sp-4);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+/* --- Planning: worked goal example bubble --------------------------------*/
+.goal-example {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.goal-example__line {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}

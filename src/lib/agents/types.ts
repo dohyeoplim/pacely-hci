@@ -48,10 +48,18 @@ export interface ParseGoalResult {
   suggestedEndDate?: string
 }
 
+export interface RevisePlanInput {
+  plan: Plan
+  instruction: string
+  category: GoalCategory
+}
+
 export interface PlannerAgent {
   decomposeGoal(input: PlannerInput): Promise<Plan>
   generateMissions?(plan: Plan, category: GoalCategory): Promise<MissionTask[]>
   parseGoal?(input: ParseGoalInput): Promise<ParseGoalResult>
+  /** Conversational revision of an existing plan from a free-text request. */
+  revisePlan?(input: RevisePlanInput): Promise<Plan>
 }
 
 export interface DialogueInput {

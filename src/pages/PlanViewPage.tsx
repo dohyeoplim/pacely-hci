@@ -5,6 +5,7 @@ import { BackButton } from '../components/BackButton'
 import { Button } from '../components/Button'
 import { DDayBadge } from '../components/DDayBadge'
 import { PlanCard } from '../components/PlanCard'
+import { PlanOriginalSheet } from '../components/PlanOriginalSheet'
 import { Sheet } from '../components/Sheet'
 import { usePacely } from '../lib/store/store'
 import { dDay, daysBetween, fromISO, todayISO } from '../lib/util'
@@ -16,6 +17,7 @@ export function PlanViewPage() {
   const { currentGoal, editGoalTitle } = usePacely()
   const [renameOpen, setRenameOpen] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
+  const [originalOpen, setOriginalOpen] = useState(false)
 
   if (!currentGoal) return <Navigate to="/welcome" replace />
 
@@ -64,6 +66,16 @@ export function PlanViewPage() {
       </section>
 
       <PlanCard plan={currentGoal.plan} goalTitle={currentGoal.title} />
+
+      {currentGoal.originalPlan && (
+        <button
+          type="button"
+          className="planning-original-link"
+          onClick={() => setOriginalOpen(true)}
+        >
+          내가 수정한 계획이에요 · 페이슬리 원안 보기 →
+        </button>
+      )}
 
       <section className="plan-view__days">
         <div className="plan-view__days-head">
@@ -152,6 +164,14 @@ export function PlanViewPage() {
           </label>
         </div>
       </Sheet>
+
+      {currentGoal.originalPlan && (
+        <PlanOriginalSheet
+          open={originalOpen}
+          original={currentGoal.originalPlan}
+          onClose={() => setOriginalOpen(false)}
+        />
+      )}
     </div>
   )
 }

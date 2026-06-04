@@ -16,10 +16,11 @@ import { RecordPage } from './pages/RecordPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PlanViewPage } from './pages/PlanViewPage'
 import { WeekPage } from './pages/WeekPage'
+import { CalendarPage } from './pages/CalendarPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { ResearchPage } from './pages/ResearchPage'
 
-const TAB_ROUTES = new Set(['/home', '/week', '/record', '/profile'])
+const TAB_ROUTES = new Set(['/home', '/calendar', '/record', '/profile'])
 
 function RootRedirect() {
   const { currentGoal } = usePacely()
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="/day-start" element={<DayStartPage />} />
           <Route path="/plan" element={<PlanViewPage />} />
           <Route path="/week" element={<WeekPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/record" element={<RecordPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/history" element={<HistoryPage />} />

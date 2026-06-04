@@ -1,6 +1,7 @@
 import type {
   DailyAllocation,
   GoalCategory,
+  ISODate,
   MissionTask,
   Milestone,
   Persona,
@@ -82,16 +83,16 @@ ${totalDays}일 모두 dailyAllocation에 포함하고 각 날 hours=${input.dai
 }
 
 function missionRefinementSystem(persona: Persona): string {
-  return `너는 Pacely 미션 생성기. 받은 일별 정보로 매일 구체적인 하위 태스크를 생성한다.
+  return `너는 Pacely 미션 생성기. 받은 일별 정보로 그 날 할 일을 만든다.
 
 규칙:
 - 한국어. JSON만.
-- 각 미션 제목은 "과목/주제 + 구체 활동 + 분량" 형태로 쓴다. 예: "선형대수 고유값 예제 5문제 풀이", "운영체제 3장 요약 노트 작성".
-- "문제 풀기", "1번 문제 풀기", "공부하기"처럼 두루뭉술하거나 번호만 있는 제목 금지. 항상 어떤 과목의 무엇을 하는지 드러낸다.
-- 주제가 여러 개면 날마다·미션마다 과목을 골고루 순환시킨다 (한 과목에 쏠리지 않게).
-- 그 날 summary와 phase에 맞게 활동 성격을 정한다 (p0 개념 정리, p1 문제 풀이, p2 복습·점검).
-- 첫 미션은 25분 이하로 바로 시작 가능한 워밍업.
-- 한 날 미션 estimatedMinutes 합 = hours×60 ± 10분. hours가 크면 미션 개수를 늘려서 시간을 꽉 채운다 (3개로 끝내지 말 것).
+- 제공된 "과목/주제" 목록 안에서만 미션을 만든다. 목록에 없는 새 과목·주제를 절대 지어내지 않는다 (관계없는 과목 금지).
+- 제목은 "과목 + 진행 단위"의 적당히 추상적인 덩어리로 쓴다 — 진도를 나누듯이. 예: "운영체제 개념 1/6 정리", "선형대수 기출 1세트 풀이", "확률통계 오답 복습".
+- 존재 여부를 알 수 없는 구체 문제·페이지·예제 번호를 지어내지 않는다 ("3번 문제", "47페이지 풀기" 금지). 사용자가 실제 교재로 채울 수 있게 단위/분량 위주로 둔다.
+- 그 날 summary·phase에 맞춰 활동 성격을 정한다 (p0 개념 정리, p1 문제 풀이, p2 복습·점검).
+- 첫 미션은 25분 이하 워밍업.
+- 한 날 미션 estimatedMinutes 합 = hours×60 ± 10분. hours가 크면 미션 개수를 늘려 시간을 채운다.
 - 페르소나 ${persona}: ${persona === 'gentle' ? '"같이 ~", "~해봐요" 어휘 가능' : '명령형 동사 "한다/푼다" 위주'}
 
 스키마:
@@ -99,13 +100,107 @@ function missionRefinementSystem(persona: Persona): string {
 }
 
 function summarizePlanForMissions(plan: Plan, category: GoalCategory): string {
+  const subjectLine =
+    plan.subjects.length > 0
+      ? `${plan.subjects.join(', ')} — 이 목록 안에서만. 목록에 없는 과목은 절대 만들지 말 것.`
+      : '특정 과목 없음 — 목표 범위 안에서 일반 학습 활동으로.'
   return `카테고리: ${category}
-과목/주제 (미션 제목에 반드시 반영, 골고루 순환): ${plan.subjects.length > 0 ? plan.subjects.join(', ') : '없음'}
+과목/주제: ${subjectLine}
 
 일별 (date|hours|phase|summary):
 ${plan.dailyAllocation
   .map((d) => `${d.date}|${d.hours}h|p${d.phase}|${d.summary}`)
   .join('\n')}`
+}
+
+function revisePlanSystem(category: GoalCategory): string {
+  return `너는 Pacely 플래너의 수정 단계. 기존 학습 계획과 사용자의 수정 요청을 받아 계획을 다시 만든다.
+
+규칙:
+- 한국어. JSON만 반환.
+- 사용자 요청을 최우선으로 반영하되, 요청과 무관한 부분은 기존 계획의 틀을 유지한다.
+- 마일스톤 title·cadence와 일별 summary에는 실제 과목/주제를 담는다 (일반론 금지).
+- phase: 첫 40% 0, 중간 40% 1, 마지막 20% 2. summary는 25자 이내.
+${category === 'exam' ? '- 마일스톤은 4개.' : '- 마일스톤은 3개.'}
+
+스키마:
+{
+  "milestones": [{"title": string, "cadence": string, "week": number}, ...],
+  "dailyAllocation": [{"date": "YYYY-MM-DD", "hours": number, "summary": string, "phase": 0|1|2}, ...]
+}`
+}
+
+function revisePlanUser(plan: Plan, instruction: string): string {
+  return `기존 계획
+기간: ${plan.period.startDate} ~ ${plan.period.endDate} (총 ${plan.period.totalDays}일)
+과목: ${plan.subjects.length > 0 ? plan.subjects.join(', ') : '없음'}
+마일스톤:
+${plan.milestones.map((m, i) => `${i + 1}. ${m.title} — ${m.cadence}`).join('\n')}
+일별 요약:
+${plan.dailyAllocation.map((d) => `${d.date}|p${d.phase}|${d.summary}`).join('\n')}
+
+사용자 수정 요청: "${instruction}"
+
+위 요청을 반영해 전체 계획(마일스톤 + ${plan.period.totalDays}일 dailyAllocation)을 다시 출력해. 날짜는 ${plan.period.startDate}부터 그대로 유지.`
+}
+
+/* Shared assembly used by both first-pass planning and revision: takes the
+   LLM's raw milestones/summaries and welds them onto a deterministic day
+   scaffold (every day covered, hours pinned to the user's choice, phases
+   evenly split). */
+function assemblePlan(
+  parsed: RawPlanStructure,
+  opts: {
+    goalText: string
+    startDate: ISODate
+    endDate: ISODate
+    dailyHours: number
+    persona: Persona
+    subjects: string[]
+  },
+): Plan {
+  const totalDays = Math.max(daysBetween(opts.startDate, opts.endDate) + 1, 1)
+  const weeks = Math.max(Math.ceil(totalDays / 7), 1)
+
+  const milestones: Milestone[] = (parsed.milestones ?? []).slice(0, 5).map((m) => ({
+    id: uid('ms'),
+    title: m.title,
+    cadence: m.cadence,
+    week: Math.max(1, Math.min(weeks, Math.round(m.week))),
+    done: false,
+  }))
+
+  const summaryByDate = new Map<string, string>()
+  for (const d of parsed.dailyAllocation ?? []) {
+    if (d?.date && typeof d.summary === 'string' && d.summary.trim()) {
+      summaryByDate.set(d.date, d.summary.trim())
+    }
+  }
+  const dailyAllocation: DailyAllocation[] = Array.from(
+    { length: totalDays },
+    (_, i) => {
+      const date = addDays(opts.startDate, i)
+      const ratio = totalDays > 1 ? i / totalDays : 0
+      const phase: 0 | 1 | 2 = ratio < 0.4 ? 0 : ratio < 0.8 ? 1 : 2
+      return {
+        date,
+        hours: opts.dailyHours,
+        summary: summaryByDate.get(date) ?? DEFAULT_PHASE_SUMMARY[phase],
+        phase,
+      }
+    },
+  )
+
+  return {
+    id: uid('plan'),
+    goalText: opts.goalText,
+    period: { startDate: opts.startDate, endDate: opts.endDate, totalDays },
+    milestones,
+    dailyAllocation,
+    persona: opts.persona,
+    weeks,
+    subjects: opts.subjects,
+  }
 }
 
 interface RawParseGoal {
@@ -255,60 +350,46 @@ export class OpenAIPlanner implements PlannerAgent {
       temperature: 0.6,
     })
     const parsed = parseJsonResponse<RawPlanStructure>(raw)
-
-    const totalDays = Math.max(
-      daysBetween(input.startDate, input.endDate) + 1,
-      1,
-    )
-    const weeks = Math.max(Math.ceil(totalDays / 7), 1)
-
-    const milestones: Milestone[] = (parsed.milestones ?? [])
-      .slice(0, 5)
-      .map((m) => ({
-        id: uid('ms'),
-        title: m.title,
-        cadence: m.cadence,
-        week: Math.max(1, Math.min(weeks, Math.round(m.week))),
-        done: false,
-      }))
-
-    /* Build the day scaffold deterministically rather than trusting the
-       LLM's dailyAllocation wholesale. This guarantees: (1) every day in the
-       chosen period is covered, (2) each day honors the user's selected daily
-       hours instead of the model silently under-allocating, and (3) phases are
-       evenly distributed (first 40% → 0, next 40% → 1, last 20% → 2). The LLM
-       only contributes the per-day summary text, matched back by date. */
-    const summaryByDate = new Map<string, string>()
-    for (const d of parsed.dailyAllocation ?? []) {
-      if (d?.date && typeof d.summary === 'string' && d.summary.trim()) {
-        summaryByDate.set(d.date, d.summary.trim())
-      }
-    }
-    const dailyAllocation: DailyAllocation[] = Array.from(
-      { length: totalDays },
-      (_, i) => {
-        const date = addDays(input.startDate, i)
-        const ratio = totalDays > 1 ? i / totalDays : 0
-        const phase: 0 | 1 | 2 = ratio < 0.4 ? 0 : ratio < 0.8 ? 1 : 2
-        return {
-          date,
-          hours: input.dailyHours,
-          summary: summaryByDate.get(date) ?? DEFAULT_PHASE_SUMMARY[phase],
-          phase,
-        }
-      },
-    )
-
-    return {
-      id: uid('plan'),
+    return assemblePlan(parsed, {
       goalText: input.goalText,
-      period: { startDate: input.startDate, endDate: input.endDate, totalDays },
-      milestones,
-      dailyAllocation,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      dailyHours: input.dailyHours,
       persona: input.persona,
-      weeks,
       subjects: input.subjects ?? [],
-    }
+    })
+  }
+
+  /* Conversational revision: feed Pacely the existing plan plus a free-text
+     instruction and rebuild the milestones + daily summaries around it. The
+     date span, daily hours and subjects stay fixed (those are edited through
+     the sheet's structured controls), so a revision only reshapes the
+     learning arc, never silently changes the period. */
+  async revisePlan(input: {
+    plan: Plan
+    instruction: string
+    category: GoalCategory
+  }): Promise<Plan> {
+    const { plan, instruction, category } = input
+    const dailyHours = plan.dailyAllocation[0]?.hours ?? 1
+    const messages: ChatMessage[] = [
+      { role: 'system', content: revisePlanSystem(category) },
+      { role: 'user', content: revisePlanUser(plan, instruction) },
+    ]
+    const raw = await callLLM(messages, {
+      responseFormat: 'json',
+      maxTokens: 1500,
+      temperature: 0.5,
+    })
+    const parsed = parseJsonResponse<RawPlanStructure>(raw)
+    return assemblePlan(parsed, {
+      goalText: plan.goalText,
+      startDate: plan.period.startDate,
+      endDate: plan.period.endDate,
+      dailyHours,
+      persona: plan.persona,
+      subjects: plan.subjects,
+    })
   }
 
   async generateMissions(

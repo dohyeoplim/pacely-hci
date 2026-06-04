@@ -70,9 +70,12 @@ export function HomePage() {
     [currentGoal, today],
   )
   const pace = useMemo(() => comparePace(currentGoal), [currentGoal])
+  // Use the persona baked into this goal's plan (the coach the user actually
+  // chose for it), not the global preference — otherwise a strict goal can
+  // surface gentle copy.
   const coachMessage = usePacelyMessage(
     currentGoal ?? ({} as never),
-    state.user.personaPreference,
+    currentGoal?.plan.persona ?? state.user.personaPreference,
   )
 
   if (!currentGoal) return <Navigate to="/welcome" replace />
@@ -150,6 +153,9 @@ export function HomePage() {
           size={144}
         />
       </section>
+      <p className="home-rings__legend t-micro">
+        진행률 100% = 전체 계획의 학습 시간을 모두 채웠을 때 · Pacely는 오늘까지의 예상 진도예요
+      </p>
 
       <section className="home-todo">
         <div className="home-todo__head">

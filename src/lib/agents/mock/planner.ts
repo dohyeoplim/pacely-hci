@@ -12,6 +12,7 @@ import type {
   ParseGoalResult,
   PlannerAgent,
   PlannerInput,
+  RevisePlanInput,
 } from '../types'
 
 interface CategoryTemplate {
@@ -221,5 +222,28 @@ export class MockPlanner implements PlannerAgent {
       weeks,
       subjects: input.subjects ?? [],
     }
+  }
+
+  async revisePlan(input: RevisePlanInput): Promise<Plan> {
+    // No LLM offline: regenerate the template plan with a fresh id so the UI
+    // treats it as a revision. The instruction is surfaced on the first
+    // milestone so the change is visible.
+    const { plan, instruction, category } = input
+    const regen = await this.decomposeGoal({
+      goalText: plan.goalText,
+      category,
+      startDate: plan.period.startDate,
+      endDate: plan.period.endDate,
+      dailyHours: plan.dailyAllocation[0]?.hours ?? 1,
+      persona: plan.persona,
+      subjects: plan.subjects.length > 0 ? plan.subjects : undefined,
+    })
+    if (regen.milestones[0]) {
+      regen.milestones[0] = {
+        ...regen.milestones[0],
+        cadence: `요청 반영: ${instruction.slice(0, 24)}`,
+      }
+    }
+    return regen
   }
 }

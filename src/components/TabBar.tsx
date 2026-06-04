@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const TABS = [
   { to: '/home', label: '홈', icon: HomeIcon },
-  { to: '/week', label: '주간', icon: WeekIcon },
+  { to: '/calendar', label: '캘린더', icon: WeekIcon },
   { to: '/record', label: '기록', icon: RecordIcon },
   { to: '/profile', label: '프로필', icon: ProfileIcon },
 ] as const
