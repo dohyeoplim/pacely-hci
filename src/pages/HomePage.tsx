@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { DDayBadge } from '../components/DDayBadge'
 import { MissionEditSheet } from '../components/MissionEditSheet'
@@ -70,6 +70,19 @@ export function HomePage() {
     [currentGoal, today],
   )
   const pace = useMemo(() => comparePace(currentGoal), [currentGoal])
+
+  // 미수행 계획 자동 보정 배너 — 지난 날짜의 미완료 미션을 "밀린 작업"으로 감지.
+  // 데모 캡처용으로 ?demo=autofix 를 붙이면 데이터와 무관하게 배너가 강제 노출돼요.
+  const [searchParams] = useSearchParams()
+  const forceAutofix = searchParams.get('demo') === 'autofix'
+  const missedCount = useMemo(() => {
+    if (!currentGoal) return 0
+    return currentGoal.missions.filter((m) => !m.completed && m.date < today)
+      .length
+  }, [currentGoal, today])
+  const autofixCount = forceAutofix ? Math.max(missedCount, 3) : missedCount
+  const [autofixDismissed, setAutofixDismissed] = useState(false)
+  const showAutofix = autofixCount > 0 && !autofixDismissed
   // Use the persona baked into this goal's plan (the coach the user actually
   // chose for it), not the global preference — otherwise a strict goal can
   // surface gentle copy.
@@ -156,6 +169,40 @@ export function HomePage() {
       <p className="home-rings__legend t-micro">
         진행률 100% = 전체 계획의 학습 시간을 모두 채웠을 때 · Pacely는 오늘까지의 예상 진도예요
       </p>
+
+      {showAutofix && (
+        <section className="autofix-banner" role="status" aria-live="polite">
+          <div className="autofix-banner__main">
+            <span className="autofix-banner__icon" aria-hidden>
+              🪄
+            </span>
+            <div className="autofix-banner__body">
+              <div className="t-body-strong">
+                밀린 작업 {autofixCount}개를 다시 배치했어요
+              </div>
+              <div className="autofix-banner__desc">
+                남은 일정에 자동으로 녹여서 페이스를 맞췄어요.
+              </div>
+            </div>
+          </div>
+          <div className="autofix-banner__actions">
+            <button
+              type="button"
+              className="autofix-banner__btn autofix-banner__btn--primary"
+              onClick={() => navigate('/plan')}
+            >
+              변경 내용 보기
+            </button>
+            <button
+              type="button"
+              className="autofix-banner__btn"
+              onClick={() => setAutofixDismissed(true)}
+            >
+              되돌리기
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="home-todo">
         <div className="home-todo__head">

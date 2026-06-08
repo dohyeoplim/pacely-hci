@@ -6,6 +6,34 @@ import { PersonaCard } from '../components/PersonaCard'
 import { isResearchMode, SURVEY_URL } from '../lib/experiment'
 import { usePacely } from '../lib/store/store'
 
+type PlanIntensity = 'relaxed' | 'balanced' | 'intense'
+
+const PLAN_INTENSITIES: {
+  value: PlanIntensity
+  emoji: string
+  label: string
+  desc: string
+}[] = [
+  {
+    value: 'relaxed',
+    emoji: '🌿',
+    label: '여유롭게',
+    desc: '하루 부담을 낮추고 길게, 꾸준히 가요',
+  },
+  {
+    value: 'balanced',
+    emoji: '⚖️',
+    label: '균형있게',
+    desc: '적당한 페이스로 안정적으로 진행해요',
+  },
+  {
+    value: 'intense',
+    emoji: '🔥',
+    label: '빡세게',
+    desc: '짧고 굵게, 강한 몰입으로 밀어붙여요',
+  },
+]
+
 export function ProfilePage() {
   const navigate = useNavigate()
   const {
@@ -19,6 +47,7 @@ export function ProfilePage() {
     reset,
   } = usePacely()
   const [draftName, setDraftName] = useState(state.user.name)
+  const [planIntensity, setPlanIntensity] = useState<PlanIntensity>('balanced')
 
   useEffect(() => {
     setDraftName(state.user.name)
@@ -69,6 +98,56 @@ export function ProfilePage() {
             onClick={() => setPersona('strict')}
           />
         </div>
+      </section>
+
+      <section className="profile-section">
+        <div className="profile-label t-caption">계획 강도</div>
+        <div className="intensity-list">
+          {PLAN_INTENSITIES.map((opt) => {
+            const on = planIntensity === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                className={`intensity-card ${on ? 'intensity-card--on' : ''}`}
+                aria-pressed={on}
+                onClick={() => setPlanIntensity(opt.value)}
+              >
+                <span className="intensity-card__emoji" aria-hidden>
+                  {opt.emoji}
+                </span>
+                <span className="intensity-card__body">
+                  <span className="t-body-strong">{opt.label}</span>
+                  <span className="intensity-card__desc">{opt.desc}</span>
+                </span>
+                <span className="intensity-card__check" aria-hidden>
+                  {on ? '✓' : ''}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <p className="t-micro">
+          새 목표를 세울 때 이 강도를 기준으로 페이스를 제안해요.
+        </p>
+      </section>
+
+      <section className="profile-section">
+        <div className="profile-label t-caption">알림</div>
+        <Link to="/settings/notifications" className="settings-row">
+          <span className="settings-row__icon" aria-hidden>
+            🔔
+          </span>
+          <span className="settings-row__body">
+            <span className="t-body-strong">알림 강도</span>
+            <span className="t-caption">
+              Pacely가 말 거는 빈도와 종류를 정해요
+            </span>
+          </span>
+          <span className="settings-row__arrow" aria-hidden>
+            →
+          </span>
+        </Link>
       </section>
 
       <section className="profile-section">

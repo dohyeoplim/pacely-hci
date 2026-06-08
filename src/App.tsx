@@ -19,6 +19,7 @@ import { WeekPage } from './pages/WeekPage'
 import { CalendarPage } from './pages/CalendarPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { ResearchPage } from './pages/ResearchPage'
+import { NotificationSettingsPage } from './pages/NotificationSettingsPage'
 
 const TAB_ROUTES = new Set(['/home', '/calendar', '/record', '/profile'])
 
@@ -109,6 +110,10 @@ export default function App() {
           <Route path="/finish" element={<FinishPage />} />
           <Route path="/reward" element={<RewardPage />} />
           <Route path="/research" element={<ResearchPage />} />
+          <Route
+            path="/settings/notifications"
+            element={<NotificationSettingsPage />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
